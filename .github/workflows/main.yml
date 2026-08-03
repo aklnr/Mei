@@ -29,24 +29,16 @@ jobs:
           distribution: temurin
           java-version: 21
 
+      # 使用 assembleDebug 自动编译并附加 Debug 通用签名
       - uses: gradle/gradle-build-action@v2
         with:
           gradle-version: current
-          arguments: assembleRelease
+          arguments: assembleDebug
 
-      # 自动为生成的 Release APK 加上通用 Debug 签名，解决系统提示"软件包无效"的问题
-      - name: Sign APK with Debug Key
-        run: |
-          APK_PATH=$(find app/build/outputs/apk/release -name "*.apk" | head -n 1)
-          # 创建默认的 debug 密钥库
-          keytool -genkeypair -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
-          # 对 APK 进行签名
-          apksigner sign --ks debug.keystore --ks-pass pass:android "$APK_PATH"
-
-      # 重命名 APK 文件
+      # 查找生成的 Debug APK 并重命名
       - name: Rename APK file
         run: |
-          APK_PATH=$(find app/build/outputs/apk/release -name "*.apk" | head -n 1)
+          APK_PATH=$(find app/build/outputs/apk/debug -name "*.apk" | head -n 1)
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             mv "$APK_PATH" Mei_${{ github.event.inputs.tag_name }}.apk
           else
@@ -89,5 +81,6 @@ jobs:
           generateReleaseNotes: true
           body: ${{ steps.release_notes.outputs.BODY }}
           skipIfReleaseExists: true
+
 
 
