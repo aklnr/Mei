@@ -79,12 +79,13 @@ fun ClassicTabletLayout(
     Row(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 32.dp)
+            .padding(horizontal = 24.dp, vertical = 12.dp)
     ){
 
+        // 左侧播放控制与信息区（加宽至 0.52f，适应 16:9 投屏）
         Column(
             modifier = Modifier
-                .weight(0.45f)
+                .weight(0.52f)
                 .fillMaxHeight(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
@@ -96,19 +97,18 @@ fun ClassicTabletLayout(
                     mediaMetadata = it,
                     isPlaying = isPlaying,
                     modifier = Modifier
-                        .fillMaxWidth(0.6f)
+                        .fillMaxWidth(0.85f) // 显著拉大封面展示尺寸
                         .aspectRatio(1f)
                 )
             }
 
+            Spacer(Modifier.height(8.dp)) // 压缩封面与标题间距
 
-
-            Spacer(Modifier.height(16.dp))
             mediaMetadata?.let {
                 PlayerHeader(
                     mediaMetadata = it,
                     modifier = Modifier
-                        .fillMaxWidth(0.7f)
+                        .fillMaxWidth(0.9f) // 宽屏扩展，防止文字截断
                         .padding(horizontal = PlayerHorizontalPadding),
                     onClick = {
                         overlayHandler.showAlbumArtist(it.album, it.artists, it.coverUrl)
@@ -123,8 +123,7 @@ fun ClassicTabletLayout(
                 )
             }
 
-            Spacer(Modifier.height(32.dp))
-
+            Spacer(Modifier.height(8.dp)) // 压缩标题与进度条间距
 
             if (progressBarStyle == ProgressBarStyle.LINEAR) {
                 FluidProgressSlider(
@@ -134,28 +133,24 @@ fun ClassicTabletLayout(
                         stateContainer.playerConnection.player.seekTo(newPosition)
                     },
                     modifier = Modifier
-                        .fillMaxWidth(0.7f)
-                        .padding(horizontal = PlayerHorizontalPadding + 8.dp)
+                        .fillMaxWidth(0.9f)
+                        .padding(horizontal = PlayerHorizontalPadding)
                 )
             } else {
                 PlayerProgressSlider(
                     position = sliderPosition.toLong(),
                     duration = duration,
-                    isPlaying = isPlaying, // 波浪进度条需要这个参数
+                    isPlaying = isPlaying,
                     onPositionChange = { newPosition ->
                         stateContainer.playerConnection.player.seekTo(newPosition)
                     },
                     modifier = Modifier
-                        .fillMaxWidth(0.7f)
-                        .padding(horizontal = PlayerHorizontalPadding + 8.dp)
+                        .fillMaxWidth(0.9f)
+                        .padding(horizontal = PlayerHorizontalPadding)
                 )
             }
 
-
-
-
-            Spacer(Modifier.height(16.dp))
-
+            Spacer(Modifier.height(6.dp)) // 压缩进度条与按键间距
 
             PlayerTableControls(
                 playerConnection = stateContainer.playerConnection,
@@ -163,7 +158,7 @@ fun ClassicTabletLayout(
                 canSkipNext = stateContainer.canSkipNext.value,
                 isPlaying = isPlaying,
                 playbackState = playbackState,
-                modifier = Modifier.fillMaxWidth(0.7f),
+                modifier = Modifier.fillMaxWidth(0.9f),
                 onPlaylistClick = {
                     isShowingPlaylist = !isShowingPlaylist
                 }
@@ -171,17 +166,18 @@ fun ClassicTabletLayout(
 
         }
 
-        Spacer(Modifier.width(32.dp))
+        Spacer(Modifier.width(20.dp))
 
         val tabletAnimStyle by rememberEnumPreference(
             key = TabletAnimationStyleKey,
             defaultValue = TabletAnimationStyle.FLIP_3D
         )
 
+        // 右侧歌词展示区
         Box(
             modifier = Modifier
-                .weight(0.45f)
-                .fillMaxHeight(0.95f)
+                .weight(0.48f)
+                .fillMaxHeight(0.98f)
                 .align(Alignment.CenterVertically)
         ) {
             val lyricContent = @Composable {
@@ -317,3 +313,4 @@ fun ClassicTabletLayout(
         }
     }
 }
+
