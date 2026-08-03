@@ -34,7 +34,16 @@ jobs:
           gradle-version: current
           arguments: assembleRelease
 
-      # 重命名编译好的 Release APK
+      # 自动为生成的 Release APK 加上通用 Debug 签名，解决系统提示"软件包无效"的问题
+      - name: Sign APK with Debug Key
+        run: |
+          APK_PATH=$(find app/build/outputs/apk/release -name "*.apk" | head -n 1)
+          # 创建默认的 debug 密钥库
+          keytool -genkeypair -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          # 对 APK 进行签名
+          apksigner sign --ks debug.keystore --ks-pass pass:android "$APK_PATH"
+
+      # 重命名 APK 文件
       - name: Rename APK file
         run: |
           APK_PATH=$(find app/build/outputs/apk/release -name "*.apk" | head -n 1)
@@ -80,4 +89,5 @@ jobs:
           generateReleaseNotes: true
           body: ${{ steps.release_notes.outputs.BODY }}
           skipIfReleaseExists: true
+
 
