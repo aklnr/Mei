@@ -105,10 +105,11 @@ fun ClassicPlayer(
 
 
         val layoutMode = when {
-            device.isTablet && device.isLandscape -> PlayerLayoutMode.Tablet
-            !device.isTablet && device.isLandscape -> PlayerLayoutMode.ImmersiveLandscape
-            else -> PlayerLayoutMode.PhonePortrait
-        }
+    // 只要是横屏（无论是平板还是手机），统一使用带有红心、三点菜单和大封面的 Tablet 布局
+    device.isLandscape -> PlayerLayoutMode.Tablet
+    else -> PlayerLayoutMode.PhonePortrait
+}
+
 
 //        Timber.tag("PlayerLayoutMode").d(layoutMode.name)
 
