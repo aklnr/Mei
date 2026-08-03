@@ -1,4 +1,4 @@
-Name: Release
+name: Release
 on:
   push:
     tags:
@@ -34,7 +34,7 @@ jobs:
           gradle-version: current
           arguments: assembleRelease
 
-      # 直接重命名编译好的未签名/通用 Release APK
+      # 重命名编译好的 Release APK
       - name: Rename APK file
         run: |
           APK_PATH=$(find app/build/outputs/apk/release -name "*.apk" | head -n 1)
@@ -80,3 +80,4 @@ jobs:
           generateReleaseNotes: true
           body: ${{ steps.release_notes.outputs.BODY }}
           skipIfReleaseExists: true
+
