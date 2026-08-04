@@ -97,7 +97,7 @@ fun ClassicTabletLayout(
                     mediaMetadata = it,
                     isPlaying = isPlaying,
                     modifier = Modifier
-                        .fillMaxWidth(0.85f) // 显著拉大封面展示尺寸
+                        .fillMaxWidth(0.85f) // 保持封面展示尺寸
                         .aspectRatio(1f)
                 )
             }
@@ -108,8 +108,8 @@ fun ClassicTabletLayout(
                 PlayerHeader(
                     mediaMetadata = it,
                     modifier = Modifier
-                        .fillMaxWidth(0.9f) // 宽屏扩展，防止文字截断
-                        .padding(horizontal = PlayerHorizontalPadding),
+                        .fillMaxWidth(0.98f) // 👈 调大至 0.98f，给歌名和右侧按钮释放极致横向空间
+                        .padding(horizontal = 2.dp), // 👈 缩减外边距，让图标贴近边缘
                     onClick = {
                         overlayHandler.showAlbumArtist(it.album, it.artists, it.coverUrl)
                     },
@@ -133,8 +133,8 @@ fun ClassicTabletLayout(
                         stateContainer.playerConnection.player.seekTo(newPosition)
                     },
                     modifier = Modifier
-                        .fillMaxWidth(0.9f)
-                        .padding(horizontal = PlayerHorizontalPadding)
+                        .fillMaxWidth(0.96f) // 同步调宽进度条
+                        .padding(horizontal = 4.dp)
                 )
             } else {
                 PlayerProgressSlider(
@@ -145,8 +145,8 @@ fun ClassicTabletLayout(
                         stateContainer.playerConnection.player.seekTo(newPosition)
                     },
                     modifier = Modifier
-                        .fillMaxWidth(0.9f)
-                        .padding(horizontal = PlayerHorizontalPadding)
+                        .fillMaxWidth(0.96f)
+                        .padding(horizontal = 4.dp)
                 )
             }
 
@@ -158,7 +158,7 @@ fun ClassicTabletLayout(
                 canSkipNext = stateContainer.canSkipNext.value,
                 isPlaying = isPlaying,
                 playbackState = playbackState,
-                modifier = Modifier.fillMaxWidth(0.9f),
+                modifier = Modifier.fillMaxWidth(0.96f),
                 onPlaylistClick = {
                     isShowingPlaylist = !isShowingPlaylist
                 }
@@ -313,4 +313,5 @@ fun ClassicTabletLayout(
         }
     }
 }
+
 
