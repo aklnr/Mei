@@ -84,8 +84,6 @@ import com.ljyh.mei.ui.model.LyricSource
 import com.ljyh.mei.utils.UnitUtils.toPx
 import kotlin.math.min
 
-
-
 @OptIn(UnstableApi::class)
 @Composable
 fun AppleMusicPlayer(
@@ -121,7 +119,6 @@ fun AppleMusicPlayer(
     BackHandler(enabled = state.isExpanded && showLyrics) {
         showLyrics = false
     }
-
 
     // --- Animation & Geometry Calculation ---
     val lyricTransition = updateTransition(targetState = showLyrics, label = "LyricMode")
@@ -162,21 +159,21 @@ fun AppleMusicPlayer(
         // B. Normal Expanded
         val topSafeArea = with(density) { WindowInsets.statusBars.getTop(this).toFloat() }
 
-        val bottomControlsHeightDp = if (isCompactHeight || isLandscape) 220.dp else 300.dp
+        val bottomControlsHeightDp = if (isCompactHeight || isLandscape) 220.dp else 280.dp
         val bottomControlsHeight = with(density) { bottomControlsHeightDp.toPx() }
 
-        // --- 动态计算封面大小 ---
-        val normalPaddingH = with(density) { (PlayerHorizontalPadding + 24.dp).toPx() }
+        // 👈 【优化关键】：缩小边距，把封面整体撑大一圈
+        val normalPaddingH = with(density) { (PlayerHorizontalPadding + 4.dp).toPx() }
         val maxAvailableWidth = maxWidthPx - (normalPaddingH * 2)
 
-        val minTopMargin = with(density) { 16.dp.toPx() }
+        val minTopMargin = with(density) { 8.dp.toPx() }
         val availableVerticalSpace = maxHeightPx - bottomControlsHeight - topSafeArea - minTopMargin
 
         val normalSize = min(maxAvailableWidth, availableVerticalSpace.coerceAtLeast(0f))
 
         val realAvailableHeight = (maxHeightPx - bottomControlsHeight - topSafeArea)
         val verticalBias = (realAvailableHeight - normalSize) / 2
-        val normalTop = topSafeArea + verticalBias.coerceAtLeast(with(density) { 12.dp.toPx() })
+        val normalTop = topSafeArea + verticalBias.coerceAtLeast(with(density) { 6.dp.toPx() })
 
         val normalStart = (maxWidthPx - normalSize) / 2
 
@@ -190,7 +187,7 @@ fun AppleMusicPlayer(
         val targetSize = lerp(normalSize, headerSize, lyricAnimFraction)
         val targetTop = lerp(normalTop, headerTop, lyricAnimFraction)
         val targetStart = lerp(normalStart, headerStart, lyricAnimFraction)
-        val targetRadius = with(density) { lerp(12.dp.toPx(), headerRadius, lyricAnimFraction) }
+        val targetRadius = with(density) { lerp(16.dp.toPx(), headerRadius, lyricAnimFraction) } // 圆角提升到 16dp 更匹配大封面
 
         val finalSize = lerp(miniSize, targetSize, sheetProgress)
         val finalTop = lerp(miniAbsTop, targetTop, sheetProgress)
@@ -199,7 +196,6 @@ fun AppleMusicPlayer(
 
         val shadowAlpha = if (sheetProgress > 0.8f) (1f - lyricAnimFraction) else 0f
         var mShadowElevation = 16.dp * shadowAlpha
-
 
         // --- 3. UI Structure ---
         BottomSheet(
@@ -244,7 +240,6 @@ fun AppleMusicPlayer(
 
             Box(modifier = Modifier.fillMaxSize()) {
 
-
                 // Mode B: Lyric Player
                 AnimatedVisibility(
                     visible = showLyrics,
@@ -288,7 +283,6 @@ fun AppleMusicPlayer(
                         Spacer(modifier = Modifier.height(spacerHeight))
                     }
                 }
-
 
                 // Mode C: Header Info
                 if (mediaMetadata != null) {
@@ -469,3 +463,4 @@ fun AppleMusicPlayer(
         }
     }
 }
+
