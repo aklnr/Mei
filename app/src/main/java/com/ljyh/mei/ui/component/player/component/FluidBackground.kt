@@ -1,237 +1,134 @@
 
 package com.ljyh.mei.ui.component.player.component
 
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.graphics.RuntimeShader
 import android.os.Build
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ShaderBrush
-import androidx.compose.ui.graphics.asComposePath
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
-import androidx.palette.graphics.Palette
-import coil3.compose.AsyncImage
-import coil3.request.ImageRequest
-import coil3.request.crossfade
-import com.ljyh.mei.utils.audio.AudioVisualizerManager
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import java.net.URL
-import kotlin.math.max
+import androidx.compose.ui.graphics.toArgb
 
-// 原版 QPlayer 核心 SkSL 算法 (移植至 Android AGSL)
-private const val AGSL_FLUID_SHADER = """
-uniform float2 resolution;
-uniform float  time;
-uniform shader cover;
+/**
+ * 🌟 修复版 SkSL 流体背景 Shader
+ * 彻底解决坐标越界导致的斜向黑块/撕裂问题，并加入 Slow Simplex Noise 慢速流体动画
+ */
+private const val FLUID_SHADER_SRC = """
+uniform vec2 iResolution;
+uniform float iTime;
+uniform vec4 color1;
+uniform vec4 color2;
+uniform vec4 color3;
 
-const float TEX_SIZE  = 32.0;
-const float WARP_A    = 0.10;
-const float WARP_B    = 0.06;
-const float ROT_SPEED = 0.18;
+vec3 permute(vec3 x) { return mod(((x*34.0)+1.0)*x, 289.0); }
 
-half4 main(float2 fragCoord) {
-    float2 screenUV = fragCoord / resolution;
-    float2 corr = float2(min(1.0, resolution.x / resolution.y),
-                         min(1.0, resolution.y / resolution.x));
-    float2 uv = (screenUV - 0.5) * corr + 0.5;
+float snoise(vec2 v){
+  const vec4 C = vec4(0.211324865405187, 0.366025403784439,
+                     -0.577350269189626, 0.024390243902439);
+  vec2 i  = floor(v + dot(v, C.yy) );
+  vec2 x0 = v -   i + dot(i, C.xx);
+  vec2 i1;
+  i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+  vec4 x12 = x0.xyxy + C.xxzz;
+  x12.xy -= i1;
+  i = mod(i, 289.0);
+  vec3 p = permute( permute( i.y + vec3(0.0, i1.y, 1.0 ))
+  + i.x + vec3(0.0, i1.x, 1.0 ) );
+  vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy), dot(x12.zw,x12.zw)), 0.0);
+  m = m*m;
+  m = m*m;
+  vec3 x = 2.0 * fract(p * C.www) - 1.0;
+  vec3 h = abs(x) - 0.5;
+  vec3 ox = floor(x + 0.5);
+  vec3 a0 = x - ox;
+  m *= 1.79284291400159 - 0.85373472095314 * ( a0*a0 + h*h );
+  vec3 g;
+  g.x  = a0.x  * x0.x  + h.x  * x0.y;
+  g.yz = a0.yz * x12.xz + h.yz * x12.yw;
+  return 130.0 * dot(m, g);
+}
+
+half4 main(vec2 fragCoord) {
+    // 1. 严格归一化坐标在 [0, 1] 范围，杜绝黑块与斜向切割
+    vec2 uv = fragCoord.xy / iResolution.xy;
     
-    // 双波段水波扭曲
-    float2 w1 = float2(sin(time * 0.42 + uv.y * 3.7), cos(time * 0.37 + uv.x * 3.1));
-    float2 w2 = float2(cos(time * 0.29 + uv.x * 2.3), sin(time * 0.51 + uv.y * 4.4));
-    float2 warpedUV = uv + WARP_A * w1 + WARP_B * w2;
+    // 2. 时间驱动的慢速液态流动
+    float t = iTime * 0.12;
+    float n1 = snoise(uv * 1.5 + vec2(t * 0.2, t * 0.1));
+    float n2 = snoise(uv * 2.2 - vec2(t * 0.1, t * 0.25));
     
-    // UV 动态旋转
-    float a  = time * ROT_SPEED;
-    float cs = cos(a);
-    float sn = sin(a);
-    float2 c = warpedUV - 0.5;
-    float2 rotUV = float2(c.x * cs - c.y * sn, c.x * sn + c.y * cs) + 0.5;
-    rotUV = clamp(rotUV, float2(0.005), float2(0.995));
+    // 3. 柔和颜色混合与暗化
+    vec3 col = mix(color1.rgb, color2.rgb, clamp(n1 + 0.5, 0.0, 1.0));
+    col = mix(col, color3.rgb, clamp(n2 * 0.8 + 0.4, 0.0, 1.0));
     
-    half4 col = cover.eval(rotUV * resolution);
+    // 适当暗化背景，凸显上层白色歌词
+    col *= 0.65;
     
-    // 暗角与抖动抗频闪处理
-    float vignette = smoothstep(0.8, 0.3, distance(screenUV, float2(0.5)));
-    half3 rgb = col.rgb * half(0.6 + vignette * 0.4);
-    float dither = fract(sin(dot(fragCoord, float2(12.9898, 78.233))) * 43758.5453);
-    rgb += half3(dither - 0.5) / 255.0;
-    
-    return half4(rgb, 1.0);
+    return vec4(col, 1.0);
 }
 """
 
 @Composable
 fun FluidBackground(
-    imageUrl: String?,
-    audioVisualizerManager: AudioVisualizerManager? = null,
-    isPlaying: Boolean = true,
-    modifier: Modifier = Modifier,
-    content: @Composable () -> Unit = {}
+    primaryColor: Color,
+    secondaryColor: Color,
+    tertiaryColor: Color,
+    modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
-
-    // 动态时间轴动画驱动（对应 QPlayer 的 Shader Time 变量）
-    val infiniteTransition = rememberInfiniteTransition(label = "FluidTime")
-    val time by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1000f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1000000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "time"
-    )
-
-    var processedBitmap by remember { mutableStateOf<Bitmap?>(null) }
-    var primaryColor by remember { mutableStateOf(Color(0xFF2C3E50)) }
-
-    // CPU 端做原版 AMLL 算法预处理与色彩增强
-    LaunchedEffect(imageUrl) {
-        if (imageUrl.isNullOrEmpty()) return@LaunchedEffect
-        withContext(Dispatchers.IO) {
-            try {
-                val url = URL(imageUrl)
-                val connection = url.openConnection().apply {
-                    connectTimeout = 3000
-                    readTimeout = 3000
-                }
-                val inputStream = connection.getInputStream()
-                val srcBitmap = BitmapFactory.decodeStream(inputStream)
-
-                if (srcBitmap != null) {
-                    // 1. 下采样至 32x32 纹理
-                    val scaled = Bitmap.createScaledBitmap(srcBitmap, 32, 32, true)
-                    
-                    // 2. 执行 QPlayer 原版 AMLL 增强算法
-                    val width = scaled.width
-                    val height = scaled.height
-                    val pixels = IntArray(width * height)
-                    scaled.getPixels(pixels, 0, width, 0, 0, width, height)
-
-                    for (i in pixels.indices) {
-                        val p = pixels[i]
-                        var r = (p shr 16 and 0xFF).toFloat()
-                        var g = (p shr 8 and 0xFF).toFloat()
-                        var b = (p and 0xFF).toFloat()
-
-                        r = (r - 128f) * 0.4f + 128f
-                        g = (g - 128f) * 0.4f + 128f
-                        b = (b - 128f) * 0.4f + 128f
-
-                        val gray = r * 0.3f + g * 0.59f + b * 0.11f
-                        r = gray * -2f + r * 3f
-                        g = gray * -2f + g * 3f
-                        b = gray * -2f + b * 3f
-
-                        r = (r - 128f) * 1.7f + 128f
-                        g = (g - 128f) * 1.7f + 128f
-                        b = (b - 128f) * 1.7f + 128f
-
-                        r *= 0.75f
-                        g *= 0.75f
-                        b *= 0.75f
-
-                        val cr = r.toInt().coerceIn(0, 255)
-                        val cg = g.toInt().coerceIn(0, 255)
-                        val cb = b.toInt().coerceIn(0, 255)
-                        pixels[i] = (0xFF shl 24) or (cr shl 16) or (cg shl 8) or cb
-                    }
-
-                    val adjustedBitmap = Bitmap.createBitmap(pixels, width, height, Bitmap.Config.ARGB_8888)
-                    processedBitmap = adjustedBitmap
-
-                    Palette.from(adjustedBitmap).generate().let { palette ->
-                        val vibrant = palette.getVibrantColor(0)
-                        val dominant = palette.getDominantColor(0)
-                        primaryColor = Color(if (vibrant != 0) vibrant else dominant)
-                    }
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
-    }
-
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(Color(0xFF0A0A0C))
-    ) {
-        // 判断系统版本：Android 13 (API 33) 及以上直接启用原生 SkSL/AGSL 扭曲着色器
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && processedBitmap != null) {
-            val shader = remember(processedBitmap) {
-                RuntimeShader(AGSL_FLUID_SHADER)
-            }
-            
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        ShaderBrush(shader.apply {
-                            setFloatUniform("resolution", 1080f, 2400f)
-                            setFloatUniform("time", time)
-                            // 传入下采样预处理后的封面 Shader
-                            setInputShader(
-                                "cover",
-                                android.graphics.BitmapShader(
-                                    processedBitmap!!,
-                                    android.graphics.Shader.TileMode.CLAMP,
-                                    android.graphics.Shader.TileMode.CLAMP
-                                )
-                            )
-                        })
-                    )
-            )
-        } else {
-            // 低版本降级方案：经典高质感高斯模糊底
-            if (!imageUrl.isNullOrEmpty()) {
-                AsyncImage(
-                    model = ImageRequest.Builder(context)
-                        .data(imageUrl)
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .scale(1.8f)
-                        .blur(85.dp)
-                )
-            }
-        }
-
-        // 覆盖层遮罩，保证文字清晰
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Black.copy(alpha = 0.2f),
-                            Color.Black.copy(alpha = 0.5f)
-                        )
-                    )
-                )
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        // 🌟 驱动时间变量 iTime 持续更新，实现背景液态流动
+        val infiniteTransition = rememberInfiniteTransition(label = "FluidTime")
+        val time by infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 1000f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(100000, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart
+            ),
+            label = "Time"
         )
 
-        content()
+        val shader = remember { RuntimeShader(FLUID_SHADER_SRC) }
+
+        Canvas(modifier = modifier.fillMaxSize()) {
+            shader.setFloatUniform("iResolution", size.width, size.height)
+            shader.setFloatUniform("iTime", time)
+
+            val c1 = primaryColor.toArgb()
+            val c2 = secondaryColor.toArgb()
+            val c3 = tertiaryColor.toArgb()
+
+            shader.setFloatUniform(
+                "color1",
+                android.graphics.Color.red(c1) / 255f,
+                android.graphics.Color.green(c1) / 255f,
+                android.graphics.Color.blue(c1) / 255f,
+                1f
+            )
+            shader.setFloatUniform(
+                "color2",
+                android.graphics.Color.red(c2) / 255f,
+                android.graphics.Color.green(c2) / 255f,
+                android.graphics.Color.blue(c2) / 255f,
+                1f
+            )
+            shader.setFloatUniform(
+                "color3",
+                android.graphics.Color.red(c3) / 255f,
+                android.graphics.Color.green(c3) / 255f,
+                android.graphics.Color.blue(c3) / 255f,
+                1f
+            )
+
+            drawRect(brush = ShaderBrush(shader))
+        }
+    } else {
+        // Android 13 以下版本降级渐变
+        Canvas(modifier = modifier.fillMaxSize()) {
+            drawRect(color = primaryColor.copy(alpha = 0.85f))
+        }
     }
 }
