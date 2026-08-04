@@ -61,19 +61,19 @@ fun PlayerHeader(
                 .weight(1f) // 占据所有可用剩余空间
                 .padding(end = 2.dp) // 极小的右间距，把空间最大化留给歌名
         ) {
-            // --- 标题部分 (字体调小为 titleMedium) ---
+            // --- 标题部分 (字重由 Bold 改为 Normal，实现不加粗) ---
             Text(
                 text = mediaMetadata.title,
                 style = MaterialTheme.typography.titleMedium.copy(
                     shadow = shadowStyle,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Normal // 👈 调为不加粗
                 ),
                 maxLines = 1,
                 color = Color.White,
                 overflow = TextOverflow.Ellipsis,
             )
 
-            // --- 副标题部分 (歌手 & 专辑，字体同步调小为 bodyMedium) ---
+            // --- 副标题部分 (歌手 & 专辑，同样确保不加粗) ---
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
@@ -82,7 +82,8 @@ fun PlayerHeader(
             ) {
                 val subTitleStyle = MaterialTheme.typography.bodyMedium.copy(
                     shadow = shadowStyle,
-                    color = Color.White.copy(alpha = 0.7f)
+                    color = Color.White.copy(alpha = 0.7f),
+                    fontWeight = FontWeight.Normal // 👈 副标题同步调为不加粗
                 )
 
                 if (mediaMetadata.artists.isNotEmpty()) {
@@ -129,7 +130,8 @@ fun PlayerHeader(
                 Icon(
                     imageVector = if (isLiked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
                     contentDescription = "Like",
-                    tint = iconColor.copy(alpha = 0.8f),
+                    // 👈 收藏后展示鲜艳的 Apple 标准红，未收藏时保持图标默认色
+                    tint = if (isLiked) Color(0xFFFF2D55) else iconColor.copy(alpha = 0.8f),
                     modifier = Modifier.size(22.dp)
                 )
             }
