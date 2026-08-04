@@ -1,4 +1,3 @@
-
 package com.ljyh.mei.ui.component.player.component
 
 import androidx.compose.animation.animateColorAsState
@@ -23,7 +22,6 @@ import kotlinx.coroutines.withContext
 @Composable
 fun FluidBackground(
     imageUrl: String?,
-    // 兼容其他播放器页面传进来的参数，避免编译报错
     audioVisualizerManager: AudioVisualizerManager? = null,
     isPlaying: Boolean = true,
     modifier: Modifier = Modifier,
@@ -31,8 +29,9 @@ fun FluidBackground(
 ) {
     val context = LocalContext.current
 
-    var vibrantColor by remember { mutableStateOf(Color(0xFF1E1E1E)) }
-    var darkMutedColor by remember { mutableStateOf(Color(0xFF0F0F0F)) }
+    // 给默认色一个稍微带点高级感的深色，防止初始空白
+    var vibrantColor by remember { mutableStateOf(Color(0xFF2C3E50)) }
+    var darkMutedColor by remember { mutableStateOf(Color(0xFF1A1A1A)) }
 
     LaunchedEffect(imageUrl) {
         if (imageUrl.isNullOrEmpty()) return@LaunchedEffect
@@ -47,10 +46,13 @@ fun FluidBackground(
                 if (result is SuccessResult) {
                     val bitmap = result.image.toBitmap()
                     Palette.from(bitmap).generate().let { palette ->
-                        val vibrant = palette.getVibrantColor(palette.getDominantColor(0xFF2C2C2C.toInt()))
-                        val dark = palette.getDarkMutedColor(0xFF121212.toInt())
+                        // 优化的取色策略：依次尝试 Vibrant -> Dominant -> Muted，确保总能拿到有色彩的值
+                        val dominant = palette.getDominantColor(0xFF3F51B5.toInt())
+                        val vibrant = palette.getVibrantColor(dominant)
+                        val darkMuted = palette.getDarkMutedColor(0xFF1E1E1E.toInt())
+
                         vibrantColor = Color(vibrant)
-                        darkMutedColor = Color(dark)
+                        darkMutedColor = Color(darkMuted)
                     }
                 }
             } catch (e: Exception) {
@@ -77,13 +79,14 @@ fun FluidBackground(
         modifier = modifier
             .fillMaxSize()
             .background(
+                // 优化渐变权重：提高主色的透明度和光晕半径，让色彩饱满地透出来，告别灰蒙蒙
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        animatedPrimary.copy(alpha = 0.6f),
-                        animatedSecondary.copy(alpha = 0.8f),
-                        Color(0xFF0A0A0A)
+                        animatedPrimary.copy(alpha = 0.85f),   // 提高主色浓度
+                        animatedSecondary.copy(alpha = 0.9f),  // 辅助色支撑层次
+                        Color(0xFF0F0F0F)                    // 边缘暗色收尾
                     ),
-                    radius = 1600f
+                    radius = 1800f
                 )
             )
     ) {
