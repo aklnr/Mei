@@ -1,6 +1,5 @@
 package com.ljyh.mei.ui.component.player.component
 
-
 import android.widget.Toast
 import androidx.annotation.OptIn
 import androidx.compose.foundation.background
@@ -18,6 +17,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -32,6 +32,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
@@ -74,6 +75,10 @@ fun LyricScreen(
     val listState = rememberLazyListState()
     val context = LocalContext.current
     var animatedPosition by remember { mutableLongStateOf(0) }
+    
+    // 👈 1. 获取封面提取的动态主色彩，用于歌词辉光发光
+    val glowColor = MaterialTheme.colorScheme.primary
+
     val (normalLyricTextSize, _) = rememberEnumPreference(
         NormalLyricTextSizeKey,
         LyricTextSize.Size24
@@ -92,7 +97,6 @@ fun LyricScreen(
             onToggleControls(false)
         }
     }
-
 
     val nestedScrollConnection = remember {
         object : NestedScrollConnection {
@@ -124,7 +128,8 @@ fun LyricScreen(
     }
 
     Column(
-        modifier = modifier.fillMaxSize()
+        modifier = modifier
+            .fillMaxSize()
             .nestedScroll(nestedScrollConnection)
             .clickable(
                 indication = null,
@@ -138,61 +143,75 @@ fun LyricScreen(
         ) {
             if (lyricData.lyricLine.lines.isNotEmpty()) {
                 key(System.identityHashCode(lyricData.lyricLine)) {
-                KaraokeLyricsView(
-                    listState = listState,
-                    lyrics = lyricData.lyricLine,
-                    currentPosition = { animatedPosition.toInt() },
-                    onLineClicked = { line ->
-                        playerConnection.player.seekTo(line.start.toLong())
-                        onToggleControls(true)
-                    },
-                    onLinePressed = { line ->
-                        val result = when (line) {
-                            is KaraokeLine -> {
-                                "${line.syllables.joinToString("") { it.content }}\n${line.translation}"
-                            }
-                            is SyncedLine -> {
-                                "${line.content}\n${line.translation}"
-                            }
-                            else -> {
-                                Toast.makeText(context, "未知的歌词类型", Toast.LENGTH_SHORT).show()
-                                null
-                            }
-                        }
-
-                        result?.let {
-                            try {
-                                setClipboard(context, it, "lyric")
-                            } catch (e: Exception) {
-                                e.printStackTrace()
-                                Toast.makeText(context, "复制失败", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    },
-                    modifier = Modifier
-                        .padding(vertical = 8.dp)
-                        .graphicsLayer {
-                            blendMode = BlendMode.Plus
-                            compositingStrategy = CompositingStrategy.Offscreen
+                    KaraokeLyricsView(
+                        listState = listState,
+                        lyrics = lyricData.lyricLine,
+                        currentPosition = { animatedPosition.toInt() },
+                        onLineClicked = { line ->
+                            playerConnection.player.seekTo(line.start.toLong())
+                            onToggleControls(true)
                         },
-                    normalLineTextStyle = LocalTextStyle.current.copy(
-                        fontSize = normalLyricTextSize.text.sp,
-                        fontWeight = if (normalLyricTextBold) FontWeight.Bold else FontWeight.Normal,
-                        textMotion = TextMotion.Animated,
-                    ),
-                    accompanimentLineTextStyle = LocalTextStyle.current.copy(
-                        fontSize = accompanimentLyricTextSize.text.sp,
-                        fontWeight = if (accompanimentLyricTextBold) FontWeight.Bold else FontWeight.Normal,
-                        textMotion = TextMotion.Animated,
+                        onLinePressed = { line ->
+                            val result = when (line) {
+                                is KaraokeLine -> {
+                                    "${line.syllables.joinToString("") { it.content }}\n${line.translation}"
+                                }
+                                is SyncedLine -> {
+                                    "${line.content}\n${line.translation}"
+                                }
+                                else -> {
+                                    Toast.makeText(context, "未知的歌词类型", Toast.LENGTH_SHORT).show()
+                                    null
+                                }
+                            }
+
+                            result?.let {
+                                try {
+                                    setClipboard(context, it, "lyric")
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
+                                    Toast.makeText(context, "复制失败", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        },
+                        modifier = Modifier
+                            .padding(vertical = 8.dp)
+                            .graphicsLayer {
+                                blendMode = BlendMode.Plus
+                                compositingStrategy = CompositingStrategy.Offscreen
+                            },
+                        // 👈 2. 主歌词样式：融入多重高斯辉光（Glow Effect）与动态取色
+                        normalLineTextStyle = LocalTextStyle.current.copy(
+                            fontSize = normalLyricTextSize.text.sp,
+                            fontWeight = if (normalLyricTextBold) FontWeight.Bold else FontWeight.Normal,
+                            textMotion = TextMotion.Animated,
+                            color = Color.White,
+                            shadow = Shadow(
+                                color = glowColor.copy(alpha = 0.85f), // 辉光跟随封面主色
+                                offset = Offset(0f, 0f),              // 居中均匀弥散
+                                blurRadius = 24f                      // 24f 扩散半径创造通透辉光
+                            )
+                        ),
+                        // 👈 3. 伴唱/副歌词样式：微弱柔光
+                        accompanimentLineTextStyle = LocalTextStyle.current.copy(
+                            fontSize = accompanimentLyricTextSize.text.sp,
+                            fontWeight = if (accompanimentLyricTextBold) FontWeight.Bold else FontWeight.Normal,
+                            textMotion = TextMotion.Animated,
+                            color = Color.White.copy(alpha = 0.9f),
+                            shadow = Shadow(
+                                color = glowColor.copy(alpha = 0.4f),
+                                offset = Offset(0f, 0f),
+                                blurRadius = 12f
+                            )
+                        )
                     )
-                )
                 }
 
                 LyricSourceBadge(
                     source = lyricData.source,
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .padding( start = 8.dp),
+                        .padding(start = 8.dp),
                     onClick = onClick,
                     onLongClick = onLongClick
                 )
@@ -200,6 +219,7 @@ fun LyricScreen(
         }
     }
 }
+
 @Composable
 private fun LyricSourceBadge(
     source: LyricSource,
@@ -218,7 +238,6 @@ private fun LyricSourceBadge(
                 onLongClick = { onLongClick(source) }
             )
     ) {
-
         Icon(
             painter = painterResource(
                 when (source) {
