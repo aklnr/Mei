@@ -1,4 +1,4 @@
-Name: Release
+name: Release
 on:
   push:
     tags:
@@ -28,13 +28,12 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
-          cache: 'gradle' # 👈 加速核心 1：自动缓存下载的依赖库
+          cache: 'gradle'
 
       # 使用 assembleDebug 自动编译，并加入加速标志
       - uses: gradle/gradle-build-action@v2
         with:
           gradle-version: current
-          # 👈 加速核心 2：开启并行编译、构建缓存，跳过耗时的测试和代码扫描
           arguments: assembleDebug --build-cache --parallel -x test -x lint
 
       # 查找生成的 Debug APK 并重命名
@@ -83,6 +82,7 @@ jobs:
           generateReleaseNotes: true
           body: ${{ steps.release_notes.outputs.BODY }}
           skipIfReleaseExists: true
+
 
 
 
