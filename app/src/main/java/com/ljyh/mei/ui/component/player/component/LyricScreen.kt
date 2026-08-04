@@ -188,10 +188,7 @@ fun LyricScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 2.dp),
-                        contentPadding = PaddingValues(top = 48.dp, bottom = 64.dp),
-                        
-                        // 👈 3. 收紧辉光半径到 15f，质感细腻自然
-                        normalLineTextStyle = LocalTextStyle.current.copy(
+                            normalLineTextStyle = LocalTextStyle.current.copy(
                             fontFamily = PingFangFontFamily,
                             fontSize = normalFontSize,
                             lineHeight = normalFontSize * 1.18f,
