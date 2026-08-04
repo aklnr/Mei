@@ -1,5 +1,4 @@
 
-
 package com.ljyh.mei.ui.component.player.component
 
 import androidx.compose.animation.animateColorAsState
@@ -31,8 +30,8 @@ fun FluidBackground(
 ) {
     val context = LocalContext.current
 
-    var vibrantColor by remember { mutableStateOf(Color(0xFF4A90E2)) }
-    var darkMutedColor by remember { mutableStateOf(Color(0xFF2C3E50)) }
+    var primaryColor by remember { mutableStateOf(Color(0xFF1E1E2C)) }
+    var secondaryColor by remember { mutableStateOf(Color(0xFF0F0F13)) }
 
     LaunchedEffect(imageUrl) {
         if (imageUrl.isNullOrEmpty()) return@LaunchedEffect
@@ -48,12 +47,12 @@ fun FluidBackground(
                 if (result is SuccessResult) {
                     val bitmap = result.image.toBitmap()
                     Palette.from(bitmap).generate().let { palette ->
-                        val dominant = palette.getDominantColor(0xFF3F51B5.toInt())
+                        val dominant = palette.getDominantColor(0xFF2C3E50.toInt())
                         val vibrant = palette.getVibrantColor(dominant)
-                        val muted = palette.getMutedColor(dominant)
+                        val darkMuted = palette.getDarkMutedColor(0xFF1A1A1A.toInt())
 
-                        vibrantColor = Color(vibrant)
-                        darkMutedColor = Color(muted)
+                        primaryColor = Color(vibrant)
+                        secondaryColor = Color(darkMuted)
                     }
                 }
             } catch (e: Exception) {
@@ -63,15 +62,15 @@ fun FluidBackground(
     }
 
     val animatedPrimary by animateColorAsState(
-        targetValue = vibrantColor,
-        animationSpec = tween(durationMillis = 800),
-        label = "QPlayerPrimaryColor"
+        targetValue = primaryColor,
+        animationSpec = tween(durationMillis = 1000),
+        label = "BgPrimary"
     )
 
     val animatedSecondary by animateColorAsState(
-        targetValue = darkMutedColor,
-        animationSpec = tween(durationMillis = 800),
-        label = "QPlayerSecondaryColor"
+        targetValue = secondaryColor,
+        animationSpec = tween(durationMillis = 1000),
+        label = "BgSecondary"
     )
 
     Box(
@@ -80,11 +79,11 @@ fun FluidBackground(
             .background(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        animatedPrimary.copy(alpha = 0.95f),
-                        animatedSecondary.copy(alpha = 0.85f),
-                        Color(0xFF0A0A0A)
+                        animatedPrimary.copy(alpha = 0.75f),
+                        animatedSecondary.copy(alpha = 0.9f),
+                        Color(0xFF050505)
                     ),
-                    radius = 2200f
+                    radius = 2000f
                 )
             )
     ) {
