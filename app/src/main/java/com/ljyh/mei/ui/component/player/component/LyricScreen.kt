@@ -39,6 +39,8 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextMotion
 import androidx.compose.ui.unit.dp
@@ -61,6 +63,12 @@ import com.mocharealm.accompanist.lyrics.core.model.synced.SyncedLine
 import com.mocharealm.accompanist.lyrics.ui.composable.lyrics.KaraokeLyricsView
 import kotlinx.coroutines.delay
 
+// 👈 定义 PingFang 苹方字体族（自动读取刚才上传的 pingfang.otf）
+val PingFangFontFamily = FontFamily(
+    Font(resId = R.font.pingfang, weight = FontWeight.Normal),
+    Font(resId = R.font.pingfang, weight = FontWeight.Bold)
+)
+
 @OptIn(UnstableApi::class)
 @Composable
 fun LyricScreen(
@@ -75,8 +83,8 @@ fun LyricScreen(
     val listState = rememberLazyListState()
     val context = LocalContext.current
     var animatedPosition by remember { mutableLongStateOf(0) }
-    
-    // 👈 1. 获取封面提取的动态主色彩，用于歌词辉光发光
+
+    // 获取封面提取的动态主色彩，用于歌词辉光发光
     val glowColor = MaterialTheme.colorScheme.primary
 
     val (normalLyricTextSize, _) = rememberEnumPreference(
@@ -180,20 +188,22 @@ fun LyricScreen(
                                 blendMode = BlendMode.Plus
                                 compositingStrategy = CompositingStrategy.Offscreen
                             },
-                        // 👈 2. 主歌词样式：融入多重高斯辉光（Glow Effect）与动态取色
+                        // 👈 主歌词样式：应用 PingFang 字体 + 封面主色辉光
                         normalLineTextStyle = LocalTextStyle.current.copy(
+                            fontFamily = PingFangFontFamily, // 👈 应用 PingFang 字体
                             fontSize = normalLyricTextSize.text.sp,
                             fontWeight = if (normalLyricTextBold) FontWeight.Bold else FontWeight.Normal,
                             textMotion = TextMotion.Animated,
                             color = Color.White,
                             shadow = Shadow(
-                                color = glowColor.copy(alpha = 0.85f), // 辉光跟随封面主色
-                                offset = Offset(0f, 0f),              // 居中均匀弥散
-                                blurRadius = 24f                      // 24f 扩散半径创造通透辉光
+                                color = glowColor.copy(alpha = 0.85f),
+                                offset = Offset(0f, 0f),
+                                blurRadius = 24f
                             )
                         ),
-                        // 👈 3. 伴唱/副歌词样式：微弱柔光
+                        // 👈 伴唱歌词样式：应用 PingFang 字体 + 柔光
                         accompanimentLineTextStyle = LocalTextStyle.current.copy(
+                            fontFamily = PingFangFontFamily, // 👈 应用 PingFang 字体
                             fontSize = accompanimentLyricTextSize.text.sp,
                             fontWeight = if (accompanimentLyricTextBold) FontWeight.Bold else FontWeight.Normal,
                             textMotion = TextMotion.Animated,
@@ -253,3 +263,4 @@ private fun LyricSourceBadge(
         )
     }
 }
+
