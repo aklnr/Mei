@@ -54,17 +54,17 @@ fun PlayerHeader(
             .clickable(onClick = { onClick() }),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // 左侧：标题和副标题
+        // 左侧：标题和副标题（给予最大的占用权重，充分延伸横向空间）
         Column(
             horizontalAlignment = Alignment.Start,
             modifier = Modifier
-                .weight(1f) // 占据剩余空间
-                .padding(end = 8.dp) // 与右侧按钮保持距离
+                .weight(1f) // 占据所有可用剩余空间
+                .padding(end = 2.dp) // 极小的右间距，把空间最大化留给歌名
         ) {
-            // --- 标题部分 ---
+            // --- 标题部分 (字体调小为 titleMedium) ---
             Text(
                 text = mediaMetadata.title,
-                style = MaterialTheme.typography.headlineSmall.copy(
+                style = MaterialTheme.typography.titleMedium.copy(
                     shadow = shadowStyle,
                     fontWeight = FontWeight.Bold
                 ),
@@ -73,13 +73,14 @@ fun PlayerHeader(
                 overflow = TextOverflow.Ellipsis,
             )
 
-            // --- 副标题部分 (歌手 & 专辑) ---
+            // --- 副标题部分 (歌手 & 专辑，字体同步调小为 bodyMedium) ---
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
                     .basicMarquee(iterations = Int.MAX_VALUE)
             ) {
-                val subTitleStyle = MaterialTheme.typography.titleMedium.copy(
+                val subTitleStyle = MaterialTheme.typography.bodyMedium.copy(
                     shadow = shadowStyle,
                     color = Color.White.copy(alpha = 0.7f)
                 )
@@ -116,32 +117,35 @@ fun PlayerHeader(
             }
         }
 
+        // 右侧：红心与更多按钮（紧靠最右端）
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.End
         ){
-            IconButton(onClick = onLikeClick) {
+            IconButton(
+                onClick = onLikeClick,
+                modifier = Modifier.size(40.dp)
+            ) {
                 Icon(
                     imageVector = if (isLiked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
                     contentDescription = "Like",
                     tint = iconColor.copy(alpha = 0.8f),
-                    modifier = Modifier.size(24.dp) // 稍微调整大小适配不同高度
+                    modifier = Modifier.size(22.dp)
                 )
             }
+
             // 右侧：更多按钮
             IconButton(
                 onClick = onMoreClick,
-                modifier = Modifier.size(48.dp)
+                modifier = Modifier.size(40.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.MoreVert,
                     contentDescription = "更多选项",
                     tint = Color.White,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(22.dp)
                 )
             }
         }
-
-
     }
 }
