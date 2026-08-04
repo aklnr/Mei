@@ -1,4 +1,3 @@
-
 package com.ljyh.mei.ui.component.player.component
 
 import android.widget.Toast
@@ -10,8 +9,11 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -61,7 +63,6 @@ import com.mocharealm.accompanist.lyrics.core.model.synced.SyncedLine
 import com.mocharealm.accompanist.lyrics.ui.composable.lyrics.KaraokeLyricsView
 import kotlinx.coroutines.delay
 
-// 引入 PingFang 苹方字体族
 val PingFangFontFamily = FontFamily(
     Font(resId = R.font.pingfang, weight = FontWeight.Normal),
     Font(resId = R.font.pingfang, weight = FontWeight.Bold)
@@ -82,8 +83,8 @@ fun LyricScreen(
     val context = LocalContext.current
     var animatedPosition by remember { mutableLongStateOf(0) }
 
-    // 通用纯白高亮辉光
-    val glowColor = Color.White.copy(alpha = 0.85f)
+    // 👈 1. 柔和精致的辉光：透明度降到 0.5f，不再像硬白雾
+    val glowColor = Color.White.copy(alpha = 0.5f)
 
     val (normalLyricTextSize, _) = rememberEnumPreference(
         NormalLyricTextSizeKey,
@@ -133,7 +134,6 @@ fun LyricScreen(
         }
     }
 
-    // 计算字号与紧凑行高
     val normalFontSize = normalLyricTextSize.text.sp
     val accompanimentFontSize = accompanimentLyricTextSize.text.sp
 
@@ -184,37 +184,37 @@ fun LyricScreen(
                                 }
                             }
                         },
-                        // 👈 调小内边距，拓宽渲染空间，让每一行展示更多字符
+                        // 👈 2. 增加 top padding (48.dp)，强行把高亮歌词往下拉，不再贴顶！
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 2.dp, vertical = 2.dp),
+                            .padding(horizontal = 2.dp),
+                        contentPadding = PaddingValues(top = 48.dp, bottom = 64.dp),
                         
-                        // 👈 主歌词：添加 1.15x 紧凑行高设置
+                        // 👈 3. 收紧辉光半径到 15f，质感细腻自然
                         normalLineTextStyle = LocalTextStyle.current.copy(
                             fontFamily = PingFangFontFamily,
                             fontSize = normalFontSize,
-                            lineHeight = normalFontSize * 1.15f, // 👈 行高缩紧
+                            lineHeight = normalFontSize * 1.18f,
                             fontWeight = if (normalLyricTextBold) FontWeight.Bold else FontWeight.Normal,
                             textMotion = TextMotion.Animated,
                             color = Color.White,
                             shadow = Shadow(
                                 color = glowColor,
                                 offset = Offset(0f, 0f),
-                                blurRadius = 36f
+                                blurRadius = 15f // 👈 从 36f 降到 15f，形成刚好贴合字形的高级辉光
                             )
                         ),
-                        // 👈 伴唱歌词：添加 1.15x 紧凑行高设置
                         accompanimentLineTextStyle = LocalTextStyle.current.copy(
                             fontFamily = PingFangFontFamily,
                             fontSize = accompanimentFontSize,
-                            lineHeight = accompanimentFontSize * 1.15f, // 👈 行高缩紧
+                            lineHeight = accompanimentFontSize * 1.18f,
                             fontWeight = if (accompanimentLyricTextBold) FontWeight.Bold else FontWeight.Normal,
                             textMotion = TextMotion.Animated,
-                            color = Color.White.copy(alpha = 0.65f),
+                            color = Color.White.copy(alpha = 0.55f),
                             shadow = Shadow(
-                                color = Color.White.copy(alpha = 0.25f),
+                                color = Color.White.copy(alpha = 0.15f),
                                 offset = Offset(0f, 0f),
-                                blurRadius = 12f
+                                blurRadius = 8f
                             )
                         )
                     )
