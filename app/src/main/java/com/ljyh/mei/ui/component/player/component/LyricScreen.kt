@@ -1,3 +1,4 @@
+
 package com.ljyh.mei.ui.component.player.component
 
 import android.widget.Toast
@@ -81,9 +82,8 @@ fun LyricScreen(
     val context = LocalContext.current
     var animatedPosition by remember { mutableLongStateOf(0) }
 
-    // 获取动态主题色作为辉光基色，如果没获取到则回退到纯白色发光
-    val primaryColor = MaterialTheme.colorScheme.primary
-    val glowColor = if (primaryColor != Color.Unspecified) primaryColor else Color.White
+    // 👈 改用通用纯白高亮辉光，任何颜色背景下都极度清晰显眼，不再被背景色彩同化吞掉
+    val glowColor = Color.White.copy(alpha = 0.85f)
 
     val (normalLyricTextSize, _) = rememberEnumPreference(
         NormalLyricTextSizeKey,
@@ -180,9 +180,9 @@ fun LyricScreen(
                                 }
                             }
                         },
-                        modifier = Modifier.padding(vertical = 8.dp), // 👈 移除过度的 BlendMode.Plus 模糊混合模式，恢复极致清晰度！
+                        modifier = Modifier.padding(vertical = 8.dp),
                         
-                        // 👈 主歌词样式：高亮纯白 + 极强的主题色通透辉光
+                        // 👈 主歌词样式：高亮纯白 + 通用纯白璀璨发光
                         normalLineTextStyle = LocalTextStyle.current.copy(
                             fontFamily = PingFangFontFamily,
                             fontSize = normalLyricTextSize.text.sp,
@@ -192,20 +192,20 @@ fun LyricScreen(
                             shadow = Shadow(
                                 color = glowColor,
                                 offset = Offset(0f, 0f),
-                                blurRadius = 32f // 强发光气场
+                                blurRadius = 36f // 👈 增大扩散半径（36f），形成宽广透明的光晕
                             )
                         ),
-                        // 👈 伴唱/副歌词样式：保持干净清晰，取消过度模糊
+                        // 👈 伴唱/副歌词样式
                         accompanimentLineTextStyle = LocalTextStyle.current.copy(
                             fontFamily = PingFangFontFamily,
                             fontSize = accompanimentLyricTextSize.text.sp,
                             fontWeight = if (accompanimentLyricTextBold) FontWeight.Bold else FontWeight.Normal,
                             textMotion = TextMotion.Animated,
-                            color = Color.White.copy(alpha = 0.65f), // 干净无模糊的半透明白
+                            color = Color.White.copy(alpha = 0.65f),
                             shadow = Shadow(
-                                color = glowColor.copy(alpha = 0.3f),
+                                color = Color.White.copy(alpha = 0.25f),
                                 offset = Offset(0f, 0f),
-                                blurRadius = 10f
+                                blurRadius = 12f
                             )
                         )
                     )
