@@ -1,10 +1,8 @@
 package com.ljyh.mei.ui.component.player.component.applemusic
 
 import android.content.res.Configuration
-import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
-import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
@@ -52,7 +50,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -79,7 +76,6 @@ import com.ljyh.mei.ui.component.player.state.PlayerStateContainer
 import com.ljyh.mei.ui.component.sheet.BottomSheet
 import com.ljyh.mei.ui.component.sheet.BottomSheetState
 import com.ljyh.mei.ui.component.sheet.HorizontalSwipeDirection
-import com.ljyh.mei.ui.component.utils.lerp
 import com.ljyh.mei.ui.model.LyricSource
 import com.ljyh.mei.utils.UnitUtils.toPx
 import kotlin.math.min
@@ -129,10 +125,11 @@ fun AppleMusicPlayer(
 
     val sheetProgress = state.progress
 
+    // 🌟 【优化关键】：让底部 Sheet 展开时的底色变完全透明或极深黑，让 FluidBackground 的渐变光晕完美透出来
     val colorScheme = MaterialTheme.colorScheme
     val backgroundColor = remember(isSystemInDarkTheme, state.value, state.collapsedBound) {
         if (isSystemInDarkTheme && state.value > state.collapsedBound) {
-            lerp(colorScheme.surfaceContainer, Color.Black, state.progress)
+            Color.Transparent // 变为透明，释放 FluidBackground 的流体渐变
         } else {
             colorScheme.surfaceContainer
         }
@@ -162,7 +159,6 @@ fun AppleMusicPlayer(
         val bottomControlsHeightDp = if (isCompactHeight || isLandscape) 220.dp else 280.dp
         val bottomControlsHeight = with(density) { bottomControlsHeightDp.toPx() }
 
-        // 👈 【优化关键】：缩小边距，把封面整体撑大一圈
         val normalPaddingH = with(density) { (PlayerHorizontalPadding + 4.dp).toPx() }
         val maxAvailableWidth = maxWidthPx - (normalPaddingH * 2)
 
@@ -232,6 +228,7 @@ fun AppleMusicPlayer(
                 }
             }
 
+            // 🌟 核心：将流体背景放在最底层，提供 QPlayer 风格的动态光晕
             FluidBackground(
                 imageUrl = coverUrl,
                 audioVisualizerManager = audioVisualizerManager,
@@ -256,7 +253,7 @@ fun AppleMusicPlayer(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .weight(1f)
-                                .padding(horizontal = 12.dp), // 👈 调小水平边距至 12.dp，让单行歌词更长、更宽敞
+                                .padding(horizontal = 20.dp), // 宽敞舒适的排版边距
                             onClick = {
                                 mediaMetadata?.let {
                                     if (overlayHandler.currentOverlayValue is OverlayState.None) {
