@@ -80,7 +80,7 @@ fun FluidBackground(
     )
 
     Box(modifier = modifier.fillMaxSize()) {
-        // 👈 1. 动态 Mesh 弥散渲染层（加上低音律动缩放与柔和模糊）
+        // 👈 1. 动态 Mesh 弥散渲染层（调小 blur 模糊，保留高饱和色彩）
         AndroidView(
             factory = { ctx ->
                 MeshBackgroundView(ctx).apply {
@@ -107,22 +107,23 @@ fun FluidBackground(
             modifier = Modifier
                 .fillMaxSize()
                 .scale(bassScale) // 重低音呼吸伸缩
-                .blur(8.dp)       // 柔和二次弥散，让色彩混色更通透
+                .blur(2.dp)       // 👈 降到 2.dp，让背景颜色不再变灰浑浊，还原极致通透色彩
         )
 
-        // 👈 2. 沉浸式暗色渐变遮罩（确保歌词与底部控件清晰可见）
+        // 👈 2. 超级通透的极淡渐变遮罩（不再把色彩压发灰）
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     brush = Brush.verticalGradient(
                         colors = listOf(
-                            Color.Black.copy(alpha = 0.35f), // 顶部顶部标题栏遮罩
-                            Color.Black.copy(alpha = 0.15f), // 中间歌词区域保持通透
-                            Color.Black.copy(alpha = 0.50f)  // 底部进度条与控制区遮罩
+                            Color.Black.copy(alpha = 0.15f), // 顶部顶部标题栏（极淡保护色）
+                            Color.Transparent,               // 中间歌词区域 100% 纯净通透！
+                            Color.Black.copy(alpha = 0.25f)  // 底部控制区稍微加一点点暗色兜底
                         )
                     )
                 )
         )
     }
 }
+
