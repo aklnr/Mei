@@ -1,7 +1,7 @@
 package com.ljyh.mei.ui.component.player.component
 
-import android.widget.Toast
 import androidx.annotation.OptIn
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
@@ -48,7 +48,6 @@ import com.ljyh.mei.R
 import com.ljyh.mei.playback.PlayerConnection
 import com.ljyh.mei.ui.model.LyricData
 import com.ljyh.mei.ui.model.LyricSource
-import com.ljyh.mei.utils.setClipboard
 import com.mocharealm.accompanist.lyrics.core.model.karaoke.KaraokeLine
 import com.mocharealm.accompanist.lyrics.core.model.synced.SyncedLine
 import kotlinx.coroutines.delay
@@ -127,12 +126,13 @@ fun LyricScreen(
         if (index == -1) 0 else index
     }
 
+    // 🌟 QPlayer 核心弹簧位移：采用轻微回弹的 Spring 阻尼逻辑
     LaunchedEffect(currentIndex) {
         if (lines.isNotEmpty()) {
             coroutineScope.launch {
                 listState.animateScrollToItem(
-                    index = maxOf(0, currentIndex - 2),
-                    scrollOffset = 0
+                    index = maxOf(0, currentIndex - 1),
+                    scrollOffset = -120
                 )
             }
         }
@@ -151,7 +151,7 @@ fun LyricScreen(
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
                     text = "暂无歌词",
-                    color = Color.White.copy(alpha = 0.5f),
+                    color = Color.White.copy(alpha = 0.4f),
                     fontFamily = PingFangFontFamily,
                     fontSize = 16.sp
                 )
@@ -161,24 +161,28 @@ fun LyricScreen(
                 state = listState,
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                contentPadding = PaddingValues(vertical = 220.dp)
+                    .padding(horizontal = 20.dp),
+                horizontalAlignment = Alignment.Start, // 🌟 改为靠左大字排版（Apple Music/QPlayer 经典横向视线）
+                contentPadding = PaddingValues(top = 180.dp, bottom = 260.dp)
             ) {
                 itemsIndexed(lines) { index, line ->
                     val isSelected = index == currentIndex
 
-                    // 🌟 QPlayer 专属动效：当前焦点行放大与高亮
+                    // 🌟 物理弹簧缩放：带有回弹微动的 Spring 曲线
                     val scaleAnim by animateFloatAsState(
-                        targetValue = if (isSelected) 1.1f else 1.0f,
-                        animationSpec = spring(dampingRatio = 0.7f, stiffness = 300f),
-                        label = "Scale"
+                        targetValue = if (isSelected) 1.08f else 0.96f,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioLowBouncy,
+                            stiffness = Spring.StiffnessMediumLow
+                        ),
+                        label = "SpringScale"
                     )
 
+                    // 🌟 景深渐变：非焦点行降低至 0.2 Alpha
                     val alphaAnim by animateFloatAsState(
-                        targetValue = if (isSelected) 1.0f else 0.25f, // 非当前行深度压暗
-                        animationSpec = spring(stiffness = 250f),
-                        label = "Alpha"
+                        targetValue = if (isSelected) 1.0f else 0.22f,
+                        animationSpec = spring(stiffness = Spring.StiffnessMedium),
+                        label = "SpringAlpha"
                     )
 
                     val contentText = when (line) {
@@ -196,7 +200,7 @@ fun LyricScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 14.dp)
+                            .padding(vertical = 12.dp)
                             .scale(scaleAnim)
                             .alpha(alphaAnim)
                             .clickable {
@@ -208,23 +212,23 @@ fun LyricScreen(
                                 playerConnection.player.seekTo(startTime.toLong())
                                 onToggleControls(true)
                             },
-                        horizontalAlignment = Alignment.CenterHorizontally
+                        horizontalAlignment = Alignment.Start
                     ) {
-                        // 🌟 主歌词：强制应用苹方字体、白光阴影发光特效
+                        // 🌟 粗体苹方 + 质感发光
                         Text(
                             text = contentText,
                             color = Color.White,
                             fontFamily = PingFangFontFamily,
-                            fontSize = 22.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                            textAlign = TextAlign.Center,
-                            lineHeight = 32.sp,
+                            fontSize = 24.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            textAlign = TextAlign.Start,
+                            lineHeight = 34.sp,
                             style = androidx.compose.ui.text.TextStyle(
                                 shadow = if (isSelected) {
                                     Shadow(
-                                        color = Color.White.copy(alpha = 0.6f),
+                                        color = Color.White.copy(alpha = 0.5f),
                                         offset = Offset(0f, 0f),
-                                        blurRadius = 18f
+                                        blurRadius = 20f
                                     )
                                 } else {
                                     Shadow.None
@@ -232,16 +236,15 @@ fun LyricScreen(
                             )
                         )
 
-                        // 翻译
                         if (!translationText.isNullOrEmpty()) {
                             Spacer(modifier = Modifier.padding(top = 4.dp))
                             Text(
                                 text = translationText,
-                                color = Color.White.copy(alpha = if (isSelected) 0.8f else 0.2f),
+                                color = Color.White.copy(alpha = if (isSelected) 0.75f else 0.18f),
                                 fontFamily = PingFangFontFamily,
-                                fontSize = 14.sp,
+                                fontSize = 15.sp,
                                 fontWeight = FontWeight.Normal,
-                                textAlign = TextAlign.Center
+                                textAlign = TextAlign.Start
                             )
                         }
                     }
@@ -293,4 +296,3 @@ private fun LyricSourceBadge(
         )
     }
 }
-
