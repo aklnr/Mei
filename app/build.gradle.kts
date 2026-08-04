@@ -10,9 +10,6 @@ plugins {
 
 }
 
-
-
-
 android {
     namespace = "com.ljyh.mei"
     compileSdk = 37
@@ -24,6 +21,12 @@ android {
         versionName = "1.53.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // 👈 核心瘦身优化：只保留 arm64-v8a 架构，剔除 x86 / armeabi 等无用原生库，包体积大幅缩减！
+        ndk {
+            abiFilters.clear()
+            abiFilters.add("arm64-v8a")
+        }
     }
 
     buildTypes {
