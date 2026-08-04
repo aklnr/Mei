@@ -31,24 +31,21 @@ import com.ljyh.mei.playback.PlayerConnection
 @OptIn(UnstableApi::class)
 @Composable
 fun PlayerControls(
-    modifier: Modifier = Modifier,
     playerConnection: PlayerConnection,
     canSkipPrevious: Boolean,
     canSkipNext: Boolean,
     isPlaying: Boolean,
     playbackState: Int,
+    modifier: Modifier = Modifier
 ){
-    // 👈 获取封面提取的动态主色调
     val accentColor = MaterialTheme.colorScheme.primary
 
     Box(modifier = modifier){
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxWidth()
+            modifier = Modifier.fillMaxWidth()
         ) {
-
-            // previous (上一首)
+            // previous
             Box(modifier = Modifier.weight(1f)) {
                 IconButton(
                     enabled = canSkipPrevious,
@@ -69,7 +66,7 @@ fun PlayerControls(
                 }
             }
 
-            // play/pause (播放/暂停 - 动态取色圆形底座)
+            // play/pause
             Box(modifier = Modifier.weight(1f)) {
                 IconButton(
                     onClick = {
@@ -81,23 +78,23 @@ fun PlayerControls(
                         }
                     },
                     modifier = Modifier
-                        .size(64.dp) // 👈 调整按钮总大小为 64.dp，视觉比例更精致
+                        .size(64.dp)
                         .align(Alignment.Center)
-                        .background(accentColor, shape = CircleShape) // 👈 充当封面取色圆形底图
+                        .background(accentColor, shape = CircleShape)
                         .clip(CircleShape)
                 ) {
                     Icon(
                         imageVector = if (playbackState == STATE_ENDED) Icons.Rounded.Replay else if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                         contentDescription = null,
-                        tint = Color.White, // 👈 纯白图标，与取色底座形成精美对比
+                        tint = Color.White,
                         modifier = Modifier
                             .align(Alignment.Center)
-                            .size(36.dp) // 👈 调整图标在圆圈内的合适尺寸
+                            .size(36.dp)
                     )
                 }
             }
 
-            // next (下一首)
+            // next
             Box(modifier = Modifier.weight(1f)) {
                 IconButton(
                     enabled = canSkipNext,
@@ -117,7 +114,7 @@ fun PlayerControls(
                     )
                 }
             }
-
         }
     }
 }
+
