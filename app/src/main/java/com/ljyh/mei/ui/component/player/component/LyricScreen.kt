@@ -9,7 +9,6 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -184,11 +183,10 @@ fun LyricScreen(
                                 }
                             }
                         },
-                        // 👈 2. 增加 top padding (48.dp)，强行把高亮歌词往下拉，不再贴顶！
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 2.dp),
-                            normalLineTextStyle = LocalTextStyle.current.copy(
+                        normalLineTextStyle = LocalTextStyle.current.copy(
                             fontFamily = PingFangFontFamily,
                             fontSize = normalFontSize,
                             lineHeight = normalFontSize * 1.18f,
@@ -198,7 +196,7 @@ fun LyricScreen(
                             shadow = Shadow(
                                 color = glowColor,
                                 offset = Offset(0f, 0f),
-                                blurRadius = 15f // 👈 从 36f 降到 15f，形成刚好贴合字形的高级辉光
+                                blurRadius = 15f
                             )
                         ),
                         accompanimentLineTextStyle = LocalTextStyle.current.copy(
