@@ -82,7 +82,7 @@ fun LyricScreen(
     val context = LocalContext.current
     var animatedPosition by remember { mutableLongStateOf(0) }
 
-    // 👈 改用通用纯白高亮辉光，任何颜色背景下都极度清晰显眼，不再被背景色彩同化吞掉
+    // 通用纯白高亮辉光
     val glowColor = Color.White.copy(alpha = 0.85f)
 
     val (normalLyricTextSize, _) = rememberEnumPreference(
@@ -133,6 +133,10 @@ fun LyricScreen(
         }
     }
 
+    // 计算字号与紧凑行高
+    val normalFontSize = normalLyricTextSize.text.sp
+    val accompanimentFontSize = accompanimentLyricTextSize.text.sp
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -180,25 +184,30 @@ fun LyricScreen(
                                 }
                             }
                         },
-                        modifier = Modifier.padding(vertical = 8.dp),
+                        // 👈 调小内边距，拓宽渲染空间，让每一行展示更多字符
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 2.dp, vertical = 2.dp),
                         
-                        // 👈 主歌词样式：高亮纯白 + 通用纯白璀璨发光
+                        // 👈 主歌词：添加 1.15x 紧凑行高设置
                         normalLineTextStyle = LocalTextStyle.current.copy(
                             fontFamily = PingFangFontFamily,
-                            fontSize = normalLyricTextSize.text.sp,
+                            fontSize = normalFontSize,
+                            lineHeight = normalFontSize * 1.15f, // 👈 行高缩紧
                             fontWeight = if (normalLyricTextBold) FontWeight.Bold else FontWeight.Normal,
                             textMotion = TextMotion.Animated,
                             color = Color.White,
                             shadow = Shadow(
                                 color = glowColor,
                                 offset = Offset(0f, 0f),
-                                blurRadius = 36f // 👈 增大扩散半径（36f），形成宽广透明的光晕
+                                blurRadius = 36f
                             )
                         ),
-                        // 👈 伴唱/副歌词样式
+                        // 👈 伴唱歌词：添加 1.15x 紧凑行高设置
                         accompanimentLineTextStyle = LocalTextStyle.current.copy(
                             fontFamily = PingFangFontFamily,
-                            fontSize = accompanimentLyricTextSize.text.sp,
+                            fontSize = accompanimentFontSize,
+                            lineHeight = accompanimentFontSize * 1.15f, // 👈 行高缩紧
                             fontWeight = if (accompanimentLyricTextBold) FontWeight.Bold else FontWeight.Normal,
                             textMotion = TextMotion.Animated,
                             color = Color.White.copy(alpha = 0.65f),
