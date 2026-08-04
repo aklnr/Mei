@@ -1,3 +1,6 @@
+
+
+
 package com.ljyh.mei.ui.component.player.component
 
 import android.widget.Toast
@@ -12,6 +15,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -28,8 +32,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -109,12 +113,10 @@ fun LyricScreen(
         }
     }
 
-    // 提取歌词纯文本列表和时间戳
     val lines = remember(lyricData) {
         lyricData.lyricLine.lines
     }
 
-    // 计算当前正在播放的歌词行索引
     val currentIndex = remember(animatedPosition, lines) {
         val index = lines.indexOfLast { line ->
             val startTime = when (line) {
@@ -127,12 +129,11 @@ fun LyricScreen(
         if (index == -1) 0 else index
     }
 
-    // 自动平滑滚动到当前行并居中
     LaunchedEffect(currentIndex) {
         if (lines.isNotEmpty()) {
             coroutineScope.launch {
                 listState.animateScrollToItem(
-                    index = maxOf(0, currentIndex - 2), // 保持焦点在上方黄金视线位
+                    index = maxOf(0, currentIndex - 2),
                     scrollOffset = 0
                 )
             }
@@ -163,12 +164,11 @@ fun LyricScreen(
                     .fillMaxSize()
                     .padding(horizontal = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                contentPadding = PaddingValues(vertical = 220.dp) // 上下留白，让首尾行也能滚到正中间
+                contentPadding = PaddingValues(vertical = 220.dp)
             ) {
                 itemsIndexed(lines) { index, line ->
                     val isSelected = index == currentIndex
 
-                    // 🌟 QPlayer 核心动效：当前行放大、高亮、非当前行深度压暗与缩小
                     val scaleAnim by animateFloatAsState(
                         targetValue = if (isSelected) 1.12f else 1.0f,
                         animationSpec = spring(dampingRatio = 0.75f, stiffness = 250f),
@@ -176,7 +176,7 @@ fun LyricScreen(
                     )
 
                     val alphaAnim by animateFloatAsState(
-                        targetValue = if (isSelected) 1.0f else 0.3f, // 非当前行压暗到 0.3，实现极致纵深
+                        targetValue = if (isSelected) 1.0f else 0.3f,
                         animationSpec = spring(stiffness = 200f),
                         label = "Alpha"
                     )
@@ -210,7 +210,6 @@ fun LyricScreen(
                             },
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        // 主歌词
                         Text(
                             text = contentText,
                             color = Color.White,
@@ -220,7 +219,6 @@ fun LyricScreen(
                             lineHeight = 28.sp
                         )
 
-                        // 翻译（如果有）
                         if (!translationText.isNullOrEmpty()) {
                             Spacer(modifier = Modifier.padding(top = 4.dp))
                             Text(
@@ -280,5 +278,3 @@ private fun LyricSourceBadge(
         )
     }
 }
-
-
