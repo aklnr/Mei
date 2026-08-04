@@ -29,11 +29,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Shadow
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -63,7 +60,7 @@ import com.mocharealm.accompanist.lyrics.core.model.synced.SyncedLine
 import com.mocharealm.accompanist.lyrics.ui.composable.lyrics.KaraokeLyricsView
 import kotlinx.coroutines.delay
 
-// 👈 定义 PingFang 苹方字体族（自动读取刚才上传的 pingfang.otf）
+// 引入 PingFang 苹方字体族
 val PingFangFontFamily = FontFamily(
     Font(resId = R.font.pingfang, weight = FontWeight.Normal),
     Font(resId = R.font.pingfang, weight = FontWeight.Bold)
@@ -84,8 +81,9 @@ fun LyricScreen(
     val context = LocalContext.current
     var animatedPosition by remember { mutableLongStateOf(0) }
 
-    // 获取封面提取的动态主色彩，用于歌词辉光发光
-    val glowColor = MaterialTheme.colorScheme.primary
+    // 获取动态主题色作为辉光基色，如果没获取到则回退到纯白色发光
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val glowColor = if (primaryColor != Color.Unspecified) primaryColor else Color.White
 
     val (normalLyricTextSize, _) = rememberEnumPreference(
         NormalLyricTextSizeKey,
@@ -182,36 +180,32 @@ fun LyricScreen(
                                 }
                             }
                         },
-                        modifier = Modifier
-                            .padding(vertical = 8.dp)
-                            .graphicsLayer {
-                                blendMode = BlendMode.Plus
-                                compositingStrategy = CompositingStrategy.Offscreen
-                            },
-                        // 👈 主歌词样式：应用 PingFang 字体 + 封面主色辉光
+                        modifier = Modifier.padding(vertical = 8.dp), // 👈 移除过度的 BlendMode.Plus 模糊混合模式，恢复极致清晰度！
+                        
+                        // 👈 主歌词样式：高亮纯白 + 极强的主题色通透辉光
                         normalLineTextStyle = LocalTextStyle.current.copy(
-                            fontFamily = PingFangFontFamily, // 👈 应用 PingFang 字体
+                            fontFamily = PingFangFontFamily,
                             fontSize = normalLyricTextSize.text.sp,
                             fontWeight = if (normalLyricTextBold) FontWeight.Bold else FontWeight.Normal,
                             textMotion = TextMotion.Animated,
                             color = Color.White,
                             shadow = Shadow(
-                                color = glowColor.copy(alpha = 0.85f),
+                                color = glowColor,
                                 offset = Offset(0f, 0f),
-                                blurRadius = 24f
+                                blurRadius = 32f // 强发光气场
                             )
                         ),
-                        // 👈 伴唱歌词样式：应用 PingFang 字体 + 柔光
+                        // 👈 伴唱/副歌词样式：保持干净清晰，取消过度模糊
                         accompanimentLineTextStyle = LocalTextStyle.current.copy(
-                            fontFamily = PingFangFontFamily, // 👈 应用 PingFang 字体
+                            fontFamily = PingFangFontFamily,
                             fontSize = accompanimentLyricTextSize.text.sp,
                             fontWeight = if (accompanimentLyricTextBold) FontWeight.Bold else FontWeight.Normal,
                             textMotion = TextMotion.Animated,
-                            color = Color.White.copy(alpha = 0.9f),
+                            color = Color.White.copy(alpha = 0.65f), // 干净无模糊的半透明白
                             shadow = Shadow(
-                                color = glowColor.copy(alpha = 0.4f),
+                                color = glowColor.copy(alpha = 0.3f),
                                 offset = Offset(0f, 0f),
-                                blurRadius = 12f
+                                blurRadius = 10f
                             )
                         )
                     )
