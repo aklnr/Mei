@@ -187,7 +187,7 @@ fun AppleMusicPlayer(
         val targetSize = lerp(normalSize, headerSize, lyricAnimFraction)
         val targetTop = lerp(normalTop, headerTop, lyricAnimFraction)
         val targetStart = lerp(normalStart, headerStart, lyricAnimFraction)
-        val targetRadius = with(density) { lerp(16.dp.toPx(), headerRadius, lyricAnimFraction) } // 圆角提升到 16dp 更匹配大封面
+        val targetRadius = with(density) { lerp(16.dp.toPx(), headerRadius, lyricAnimFraction) }
 
         val finalSize = lerp(miniSize, targetSize, sheetProgress)
         val finalTop = lerp(miniAbsTop, targetTop, sheetProgress)
@@ -256,7 +256,7 @@ fun AppleMusicPlayer(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .weight(1f)
-                                .padding(horizontal = PlayerHorizontalPadding),
+                                .padding(horizontal = 12.dp), // 👈 调小水平边距至 12.dp，让单行歌词更长、更宽敞
                             onClick = {
                                 mediaMetadata?.let {
                                     if (overlayHandler.currentOverlayValue is OverlayState.None) {
@@ -463,4 +463,5 @@ fun AppleMusicPlayer(
         }
     }
 }
+
 
