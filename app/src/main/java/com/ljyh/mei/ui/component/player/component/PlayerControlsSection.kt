@@ -82,7 +82,7 @@ fun PlayerControlsSection(
                 .padding(horizontal = PlayerHorizontalPadding)
         ) {
             PlayerControls(
-                playerConnection = playerConnection, // 👈 补上这一行传参
+                playerConnection = playerConnection,
                 canSkipPrevious = !isFM.value || playerConnection.player.hasPreviousMediaItem(),
                 canSkipNext = playerConnection.player.hasNextMediaItem(),
                 isPlaying = isPlaying,
@@ -108,3 +108,4 @@ fun PlayerControlsSection(
         }
     }
 }
+
