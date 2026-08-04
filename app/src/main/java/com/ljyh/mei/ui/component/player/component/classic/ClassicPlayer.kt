@@ -39,28 +39,22 @@ fun ClassicPlayer(
 ) {
 
     val device = rememberDeviceInfo()
-
     val isSystemInDarkTheme = isSystemInDarkTheme()
-
-
 
     // --- 从状态容器获取数据 ---
     val mediaMetadata by stateContainer.mediaMetadata
     val sliderPosition by remember { derivedStateOf { stateContainer.sliderPosition } }
     val duration by remember { derivedStateOf { stateContainer.duration } }
 
-    // 背景颜色计算
+    // 背景颜色计算：展开时使用透明背景，让底层的 FluidBackground 流体渐变完美透出
     val colorScheme = MaterialTheme.colorScheme
     val backgroundColor = remember(isSystemInDarkTheme, state.value, state.collapsedBound) {
         if (isSystemInDarkTheme && state.value > state.collapsedBound) {
-            lerp(colorScheme.surfaceContainer, Color.Black, state.progress)
+            Color.Transparent // 🌟 改为透明，彻底释放流体背景光晕
         } else {
             colorScheme.surfaceContainer
         }
     }
-
-
-
 
     BottomSheet(
         state = state,
@@ -97,29 +91,23 @@ fun ClassicPlayer(
             }
         }
 
+        // 🌟 流体渐变背景（位于最底层）
         FluidBackground(
             imageUrl = coverUrl,
             audioVisualizerManager = audioVisualizerManager,
             isPlaying = isPlaying
         )
 
-
         val layoutMode = when {
-    // 只要是横屏（无论是平板还是手机），统一使用带有红心、三点菜单和大封面的 Tablet 布局
-    device.isLandscape -> PlayerLayoutMode.Tablet
-    else -> PlayerLayoutMode.PhonePortrait
-}
-
-
-//        Timber.tag("PlayerLayoutMode").d(layoutMode.name)
-
+            device.isLandscape -> PlayerLayoutMode.Tablet
+            else -> PlayerLayoutMode.PhonePortrait
+        }
 
         when (layoutMode) {
             PlayerLayoutMode.PhonePortrait -> ClassicPhoneLayout(stateContainer, overlayHandler)
             PlayerLayoutMode.Tablet -> ClassicTabletLayout(stateContainer, overlayHandler)
             PlayerLayoutMode.ImmersiveLandscape -> ClassicImmersiveLayout(stateContainer, overlayHandler)
         }
-
-
     }
 }
+
