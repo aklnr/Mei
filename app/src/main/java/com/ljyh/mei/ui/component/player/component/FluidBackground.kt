@@ -1,10 +1,19 @@
 package com.ljyh.mei.ui.component.player.component
 
 import android.os.Build
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import coil3.ImageLoader
 import coil3.request.ImageRequest
@@ -24,7 +33,6 @@ import com.ljyh.mei.utils.rememberPreference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-
 @Composable
 fun FluidBackground(
     imageUrl: String?,
@@ -42,8 +50,7 @@ fun FluidBackground(
     val (volumeScale) = rememberPreference(MeshLowFreqVolumeKey, defaultValue = 0.1f)
     val (subdivision) = rememberPreference(MeshSubdivisionKey, defaultValue = 50)
 
-    // 1. 将图片加载逻辑独立出来，只负责把 Bitmap 提取出来
-    // 使用 produceState 是处理这种“异步数据转同步状态”的最佳实践
+    // 1. 将图片加载逻辑独立出来，提取 Bitmap
     val albumBitmap by produceState<Bitmap?>(null, imageUrl) {
         if (imageUrl.isNullOrEmpty()) {
             value = null
@@ -63,35 +70,59 @@ fun FluidBackground(
         }
     }
 
-    // 2. 组装当前需要传递给 View 的所有状态
     val shouldAnimate = !meshPlaying || isPlaying
 
-    // 3. 去掉过于严格的版本限制 (只要设备存在就能初始化，低端机 GLES 3.0 兼容性极好)
-    // 如果你想绝对保险，可以写 >= Build.VERSION_CODES.LOLLIPOP (21)
-    AndroidView(
-        factory = { ctx ->
-            MeshBackgroundView(ctx).apply {
-                // 初始化时的默认值
-                setFlowSpeed(flowSpeed)
-                setRenderScale(renderScale)
-                setSubdivision(subdivision)
-                setStaticMode(staticMode)
-                setPlaying(shouldAnimate)
-                setPreserveEGLContextOnPause(true)
-            }
-        },
-        update = { view ->
-            albumBitmap?.let { bmp ->
-                view.setAlbum(bmp)
-            }
-
-            view.updateVolume(bass * volumeScale)
-            view.setFlowSpeed(flowSpeed)
-            view.setRenderScale(renderScale)
-            view.setSubdivision(subdivision)
-            view.setStaticMode(staticMode)
-            view.setPlaying(shouldAnimate)
-        },
-        modifier = modifier.fillMaxSize()
+    // 👈 响应重低音鼓点的轻微呼吸缩放（1.0 ~ 1.06 随低音跳动）
+    val bassScale by animateFloatAsState(
+        targetValue = 1f + (bass * volumeScale * 0.15f).coerceIn(0f, 0.08f),
+        animationSpec = tween(durationMillis = 100),
+        label = "bassScale"
     )
+
+    Box(modifier = modifier.fillMaxSize()) {
+        // 👈 1. 动态 Mesh 弥散渲染层（加上低音律动缩放与柔和模糊）
+        AndroidView(
+            factory = { ctx ->
+                MeshBackgroundView(ctx).apply {
+                    setFlowSpeed(flowSpeed)
+                    setRenderScale(renderScale)
+                    setSubdivision(subdivision)
+                    setStaticMode(staticMode)
+                    setPlaying(shouldAnimate)
+                    setPreserveEGLContextOnPause(true)
+                }
+            },
+            update = { view ->
+                albumBitmap?.let { bmp ->
+                    view.setAlbum(bmp)
+                }
+
+                view.updateVolume(bass * volumeScale)
+                view.setFlowSpeed(flowSpeed)
+                view.setRenderScale(renderScale)
+                view.setSubdivision(subdivision)
+                view.setStaticMode(staticMode)
+                view.setPlaying(shouldAnimate)
+            },
+            modifier = Modifier
+                .fillMaxSize()
+                .scale(bassScale) // 重低音呼吸伸缩
+                .blur(8.dp)       // 柔和二次弥散，让色彩混色更通透
+        )
+
+        // 👈 2. 沉浸式暗色渐变遮罩（确保歌词与底部控件清晰可见）
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Black.copy(alpha = 0.35f), // 顶部顶部标题栏遮罩
+                            Color.Black.copy(alpha = 0.15f), // 中间歌词区域保持通透
+                            Color.Black.copy(alpha = 0.50f)  // 底部进度条与控制区遮罩
+                        )
+                    )
+                )
+        )
+    }
 }
