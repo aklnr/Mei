@@ -1,24 +1,21 @@
+
 package com.ljyh.mei.ui.component.player.component
 
+import android.graphics.BlurMaskFilter
+import android.graphics.Paint as NativePaint
+import android.graphics.Typeface
 import androidx.annotation.OptIn
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -26,21 +23,17 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.media3.common.util.UnstableApi
@@ -51,12 +44,16 @@ import com.ljyh.mei.ui.model.LyricSource
 import com.mocharealm.accompanist.lyrics.core.model.karaoke.KaraokeLine
 import com.mocharealm.accompanist.lyrics.core.model.synced.SyncedLine
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import kotlin.math.exp
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.sqrt
 
-val PingFangFontFamily = FontFamily(
-    Font(resId = R.font.pingfang, weight = FontWeight.Normal),
-    Font(resId = R.font.pingfang, weight = FontWeight.Bold)
-)
+// 🌟 原版 QPlayer 物理常量
+private const val LIFT_PEAK_PX = 4.0f // 字符微抬升高度
+private const val LIFT_OMEGA0 = 3.7416574 // Apple LiftSpring 物理参数
+private const val LIFT_ZETA = 0.935414
+private const val DARK_MASK_ALPHA = 0.36f // 未演唱字符透明度
 
 @OptIn(UnstableApi::class)
 @Composable
@@ -69,9 +66,8 @@ fun LyricScreen(
     controlsVisible: Boolean,
     onToggleControls: (Boolean) -> Unit
 ) {
-    val listState = rememberLazyListState()
     val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
+    val density = LocalDensity.current
     var animatedPosition by remember { mutableLongStateOf(0) }
 
     LaunchedEffect(controlsVisible) {
@@ -97,44 +93,49 @@ fun LyricScreen(
         }
     }
 
+    // 🌟 高频 60FPS 实时帧率更新，保证逐字扫字与字符弹簧流畅度
     LaunchedEffect(playerConnection.isPlaying) {
         if (playerConnection.isPlaying.value) {
             while (true) {
                 animatedPosition = (playerConnection.player.currentPosition).coerceAtMost(
                     playerConnection.player.duration
                 )
-                delay(30)
+                delay(16)
             }
         } else {
             animatedPosition = playerConnection.player.currentPosition
         }
     }
 
-    val lines = remember(lyricData) {
-        lyricData.lyricLine.lines
-    }
+    val lines = remember(lyricData) { lyricData.lyricLine.lines }
 
-    val currentIndex = remember(animatedPosition, lines) {
-        val index = lines.indexOfLast { line ->
-            val startTime = when (line) {
-                is KaraokeLine -> line.start
-                is SyncedLine -> line.start
-                else -> 0
-            }
-            startTime <= animatedPosition
+    // 原生 Paint 缓存初始化
+    val textPaint = remember {
+        NativePaint().apply {
+            isAntiAlias = true
+            color = android.graphics.Color.WHITE
+            textSize = with(density) { 24.sp.toPx() }
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
         }
-        if (index == -1) 0 else index
     }
 
-    // 🌟 QPlayer 核心弹簧位移：采用轻微回弹的 Spring 阻尼逻辑
-    LaunchedEffect(currentIndex) {
-        if (lines.isNotEmpty()) {
-            coroutineScope.launch {
-                listState.animateScrollToItem(
-                    index = maxOf(0, currentIndex - 1),
-                    scrollOffset = -120
-                )
-            }
+    val glowPaint = remember {
+        NativePaint().apply {
+            isAntiAlias = true
+            color = android.graphics.Color.WHITE
+            textSize = with(density) { 24.sp.toPx() }
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            maskFilter = BlurMaskFilter(12f, BlurMaskFilter.Blur.NORMAL) // QPlayer 原版发光 Filter
+        }
+    }
+
+    val dimPaint = remember {
+        NativePaint().apply {
+            isAntiAlias = true
+            color = android.graphics.Color.WHITE
+            alpha = (255 * 0.25f).toInt() // 非焦点行深度压暗
+            textSize = with(density) { 20.sp.toPx() }
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
         }
     }
 
@@ -152,99 +153,111 @@ fun LyricScreen(
                 Text(
                     text = "暂无歌词",
                     color = Color.White.copy(alpha = 0.4f),
-                    fontFamily = PingFangFontFamily,
                     fontSize = 16.sp
                 )
             }
         } else {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 20.dp),
-                horizontalAlignment = Alignment.Start, // 🌟 改为靠左大字排版（Apple Music/QPlayer 经典横向视线）
-                contentPadding = PaddingValues(top = 180.dp, bottom = 260.dp)
-            ) {
-                itemsIndexed(lines) { index, line ->
+            // 计算当前焦点行索引
+            val currentIndex = remember(animatedPosition, lines) {
+                val index = lines.indexOfLast { line ->
+                    val startTime = when (line) {
+                        is KaraokeLine -> line.start
+                        is SyncedLine -> line.start
+                        else -> 0
+                    }
+                    startTime <= animatedPosition
+                }
+                if (index == -1) 0 else index
+            }
+
+            // 平滑滚动 Y 轴平移变量
+            var scrollYOffset by remember { mutableFloatStateOf(0f) }
+            val targetScrollY = currentIndex * with(density) { 64.dp.toPx() }
+
+            // 弹簧平滑跟踪
+            LaunchedEffect(targetScrollY) {
+                scrollYOffset += (targetScrollY - scrollYOffset) * 0.18f
+            }
+
+            // 🌟 核心：使用 Canvas 进行全底层精准 QPlayer 风格绘制
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val canvasWidth = size.width
+                val canvasHeight = size.height
+                val startX = 80f // 靠左大字对齐
+                val centerY = canvasHeight * 0.38f // 视线黄金焦点比例 (ALIGN_POSITION = 0.35)
+
+                val lineSpacingPx = 64.dp.toPx()
+
+                lines.forEachIndexed { index, line ->
+                    val lineTopY = centerY + (index * lineSpacingPx) - scrollYOffset
                     val isSelected = index == currentIndex
 
-                    // 🌟 物理弹簧缩放：带有回弹微动的 Spring 曲线
-                    val scaleAnim by animateFloatAsState(
-                        targetValue = if (isSelected) 1.08f else 0.96f,
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioLowBouncy,
-                            stiffness = Spring.StiffnessMediumLow
-                        ),
-                        label = "SpringScale"
-                    )
+                    // 视口裁剪：只绘制可见区域内的歌词，优化流畅度
+                    if (lineTopY > -100f && lineTopY < canvasHeight + 100f) {
+                        val contentText = when (line) {
+                            is KaraokeLine -> line.syllables.joinToString("") { it.content }
+                            is SyncedLine -> line.content
+                            else -> ""
+                        }
 
-                    // 🌟 景深渐变：非焦点行降低至 0.2 Alpha
-                    val alphaAnim by animateFloatAsState(
-                        targetValue = if (isSelected) 1.0f else 0.22f,
-                        animationSpec = spring(stiffness = Spring.StiffnessMedium),
-                        label = "SpringAlpha"
-                    )
+                        if (isSelected) {
+                            // 🌟 当前焦点行：处理逐字 Lift 抬升波浪 + 发光 Pass
+                            var curX = startX
+                            val lineStartMs = when (line) {
+                                is KaraokeLine -> line.start
+                                is SyncedLine -> line.start
+                                else -> 0
+                            }
 
-                    val contentText = when (line) {
-                        is KaraokeLine -> line.syllables.joinToString("") { it.content }
-                        is SyncedLine -> line.content
-                        else -> ""
-                    }
+                            if (line is KaraokeLine && line.syllables.isNotEmpty()) {
+                                // 卡拉OK 音节逐字抬升绘制
+                                line.syllables.forEach { syllable ->
+                                    val sylText = syllable.content
+                                    val sylStart = syllable.start
+                                    val tau = (animatedPosition - sylStart) / 1000.0
 
-                    val translationText = when (line) {
-                        is KaraokeLine -> line.translation
-                        is SyncedLine -> line.translation
-                        else -> null
-                    }
+                                    // 计算 QPlayer liftSpringK 抬升位移
+                                    val liftK = computeLiftSpringK(tau)
+                                    val offsetY = -LIFT_PEAK_PX * liftK
 
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 12.dp)
-                            .scale(scaleAnim)
-                            .alpha(alphaAnim)
-                            .clickable {
-                                val startTime = when (line) {
-                                    is KaraokeLine -> line.start
-                                    is SyncedLine -> line.start
-                                    else -> 0
-                                }
-                                playerConnection.player.seekTo(startTime.toLong())
-                                onToggleControls(true)
-                            },
-                        horizontalAlignment = Alignment.Start
-                    ) {
-                        // 🌟 粗体苹方 + 质感发光
-                        Text(
-                            text = contentText,
-                            color = Color.White,
-                            fontFamily = PingFangFontFamily,
-                            fontSize = 24.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            textAlign = TextAlign.Start,
-                            lineHeight = 34.sp,
-                            style = androidx.compose.ui.text.TextStyle(
-                                shadow = if (isSelected) {
-                                    Shadow(
-                                        color = Color.White.copy(alpha = 0.5f),
-                                        offset = Offset(0f, 0f),
-                                        blurRadius = 20f
+                                    val isSung = animatedPosition >= sylStart
+
+                                    // 1. 发光底层 Pass
+                                    if (isSung) {
+                                        glowPaint.alpha = (255 * 0.55f).toInt()
+                                        drawContext.canvas.nativeCanvas.drawText(
+                                            sylText,
+                                            curX,
+                                            lineTopY + offsetY,
+                                            glowPaint
+                                        )
+                                    }
+
+                                    // 2. 纯白高亮字符 Pass
+                                    textPaint.alpha = if (isSung) 255 else (255 * DARK_MASK_ALPHA).toInt()
+                                    drawContext.canvas.nativeCanvas.drawText(
+                                        sylText,
+                                        curX,
+                                        lineTopY + offsetY,
+                                        textPaint
                                     )
-                                } else {
-                                    Shadow.None
-                                }
-                            )
-                        )
 
-                        if (!translationText.isNullOrEmpty()) {
-                            Spacer(modifier = Modifier.padding(top = 4.dp))
-                            Text(
-                                text = translationText,
-                                color = Color.White.copy(alpha = if (isSelected) 0.75f else 0.18f),
-                                fontFamily = PingFangFontFamily,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Normal,
-                                textAlign = TextAlign.Start
+                                    curX += textPaint.measureText(sylText)
+                                }
+                            } else {
+                                // 传统整句同步行绘制
+                                glowPaint.alpha = (255 * 0.55f).toInt()
+                                drawContext.canvas.nativeCanvas.drawText(contentText, startX, lineTopY, glowPaint)
+                                textPaint.alpha = 255
+                                drawContext.canvas.nativeCanvas.drawText(contentText, startX, lineTopY, textPaint)
+                            }
+                        } else {
+                            // 🌟 非当前行：应用 0.25 深度压暗与缩小
+                            drawContext.canvas.nativeCanvas.drawText(
+                                contentText,
+                                startX,
+                                lineTopY,
+                                dimPaint
                             )
                         }
                     }
@@ -261,6 +274,19 @@ fun LyricScreen(
             onLongClick = onLongClick
         )
     }
+}
+
+/**
+ * 🌟 移植自 QPlayer LyricRenderer.java 的 Apple liftSpring 物理算法
+ */
+private fun computeLiftSpringK(tau: Double): Float {
+    if (tau <= 0.0) return 0f
+    val zw = LIFT_ZETA * LIFT_OMEGA0
+    val wd = LIFT_OMEGA0 * sqrt(1.0 - LIFT_ZETA * LIFT_ZETA)
+    val env = exp(-zw * tau)
+    var y = 1.0 - env * (kotlin.math.cos(wd * tau) + (zw / wd) * kotlin.math.sin(wd * tau))
+    if (y < 0.0) y = 0.0
+    return y.toFloat()
 }
 
 @Composable
