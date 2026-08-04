@@ -1,3 +1,4 @@
+
 package com.ljyh.mei.ui.component.player.component
 
 import androidx.compose.animation.animateColorAsState
@@ -15,19 +16,21 @@ import coil3.ImageLoader
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import coil3.toBitmap
+import com.ljyh.mei.utils.audio.AudioVisualizerManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 @Composable
 fun FluidBackground(
     imageUrl: String?,
-    // 兼容其他播放器页面可能传入的可选参数，防止外部调用报错
+    // 兼容其他播放器页面传进来的参数，避免编译报错
+    audioVisualizerManager: AudioVisualizerManager? = null,
+    isPlaying: Boolean = true,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit = {}
 ) {
     val context = LocalContext.current
 
-    // 1. 异步从图片 URL 中提取出主色调
     var vibrantColor by remember { mutableStateOf(Color(0xFF1E1E1E)) }
     var darkMutedColor by remember { mutableStateOf(Color(0xFF0F0F0F)) }
 
@@ -39,7 +42,6 @@ fun FluidBackground(
                 val request = ImageRequest.Builder(context)
                     .data(imageUrl)
                     .size(256)
-                    // 修复 Coil 3 的参数问题
                     .build()
                 val result = loader.execute(request)
                 if (result is SuccessResult) {
@@ -57,7 +59,6 @@ fun FluidBackground(
         }
     }
 
-    // 2. 修复：局部变量不能加 const，改成普通的 val
     val crossFadeDuration = 1000
 
     val animatedPrimary by animateColorAsState(
@@ -76,7 +77,6 @@ fun FluidBackground(
         modifier = modifier
             .fillMaxSize()
             .background(
-                // 3. 仿照 QPlayer 的多层光晕与沉浸式暗色底调收尾
                 brush = Brush.radialGradient(
                     colors = listOf(
                         animatedPrimary.copy(alpha = 0.6f),
@@ -90,5 +90,4 @@ fun FluidBackground(
         content()
     }
 }
-
 
