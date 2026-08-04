@@ -21,7 +21,7 @@ import kotlinx.coroutines.withContext
 @Composable
 fun FluidBackground(
     imageUrl: String?,
-    // 移除原先不需要的音频视觉化管理器和律动参数，保持纯净
+    // 兼容其他播放器页面可能传入的可选参数，防止外部调用报错
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit = {}
 ) {
@@ -39,7 +39,7 @@ fun FluidBackground(
                 val request = ImageRequest.Builder(context)
                     .data(imageUrl)
                     .size(256)
-                    .allowHardware(false)
+                    // 修复 Coil 3 的参数问题
                     .build()
                 val result = loader.execute(request)
                 if (result is SuccessResult) {
@@ -57,18 +57,18 @@ fun FluidBackground(
         }
     }
 
-    // 2. 核心：切歌时的平滑交叉渐变（Cross-fade），持续时间 1000ms（完全对标 QPlayer 的平滑过渡）
-    const val CROSS_FADE_DURATION = 1000
+    // 2. 修复：局部变量不能加 const，改成普通的 val
+    val crossFadeDuration = 1000
 
     val animatedPrimary by animateColorAsState(
         targetValue = vibrantColor,
-        animationSpec = tween(durationMillis = CROSS_FADE_DURATION),
+        animationSpec = tween(durationMillis = crossFadeDuration),
         label = "QPlayerPrimaryColor"
     )
 
     val animatedSecondary by animateColorAsState(
         targetValue = darkMutedColor,
-        animationSpec = tween(durationMillis = CROSS_FADE_DURATION),
+        animationSpec = tween(durationMillis = crossFadeDuration),
         label = "QPlayerSecondaryColor"
     )
 
