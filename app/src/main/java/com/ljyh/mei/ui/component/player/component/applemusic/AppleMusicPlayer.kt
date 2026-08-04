@@ -76,6 +76,7 @@ import com.ljyh.mei.ui.component.player.state.PlayerStateContainer
 import com.ljyh.mei.ui.component.sheet.BottomSheet
 import com.ljyh.mei.ui.component.sheet.BottomSheetState
 import com.ljyh.mei.ui.component.sheet.HorizontalSwipeDirection
+import com.ljyh.mei.ui.component.utils.lerp // 👈 补上这个关键导包
 import com.ljyh.mei.ui.model.LyricSource
 import com.ljyh.mei.utils.UnitUtils.toPx
 import kotlin.math.min
@@ -93,10 +94,8 @@ fun AppleMusicPlayer(
     val isSystemInDarkTheme = isSystemInDarkTheme()
     val configuration = LocalConfiguration.current
 
-    // --- Apple Music 特定状态 ---
     var showLyrics by remember { mutableStateOf(false) }
 
-    // --- 从状态容器获取数据 ---
     val mediaMetadata by stateContainer.mediaMetadata
     val isPlaying by stateContainer.isPlaying
     val playbackState by stateContainer.playbackState
@@ -106,7 +105,6 @@ fun AppleMusicPlayer(
     val lyricLine by remember { derivedStateOf { stateContainer.lyricLine } }
     val isLiked by stateContainer.isLiked
 
-    // --- Apple Music 特定的 LaunchedEffect ---
     LaunchedEffect(state.isCollapsed) {
         if (state.isCollapsed) {
             showLyrics = false
@@ -116,7 +114,6 @@ fun AppleMusicPlayer(
         showLyrics = false
     }
 
-    // --- Animation & Geometry Calculation ---
     val lyricTransition = updateTransition(targetState = showLyrics, label = "LyricMode")
     val lyricAnimFraction by lyricTransition.animateFloat(
         label = "Fraction",
@@ -125,11 +122,10 @@ fun AppleMusicPlayer(
 
     val sheetProgress = state.progress
 
-    // 🌟 【优化关键】：让底部 Sheet 展开时的底色变完全透明或极深黑，让 FluidBackground 的渐变光晕完美透出来
     val colorScheme = MaterialTheme.colorScheme
     val backgroundColor = remember(isSystemInDarkTheme, state.value, state.collapsedBound) {
         if (isSystemInDarkTheme && state.value > state.collapsedBound) {
-            Color.Transparent // 变为透明，释放 FluidBackground 的流体渐变
+            Color.Transparent
         } else {
             colorScheme.surfaceContainer
         }
@@ -140,20 +136,15 @@ fun AppleMusicPlayer(
         val maxWidthPx = constraints.maxWidth.toFloat()
         val maxHeightPx = constraints.maxHeight.toFloat()
 
-        // --- 响应式布局判断 ---
         val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
         val isCompactHeight = maxHeightPx < with(density) { 600.dp.toPx() }
 
-        // --- 1. 定义关键尺寸参数 ---
-
-        // A. Mini Player (Bottom)
         val miniSize = with(density) { 48.dp.toPx() }
         val miniStart = with(density) { 12.dp.toPx() }
         val miniRadius = with(density) { ThumbnailCornerRadius.toPx() }
         val collapsedBoundPx = with(density) { state.collapsedBound.toPx() }
         val miniAbsTop = maxHeightPx - collapsedBoundPx + with(density) { 6.dp.toPx() }
 
-        // B. Normal Expanded
         val topSafeArea = with(density) { WindowInsets.statusBars.getTop(this).toFloat() }
 
         val bottomControlsHeightDp = if (isCompactHeight || isLandscape) 220.dp else 280.dp
@@ -173,13 +164,11 @@ fun AppleMusicPlayer(
 
         val normalStart = (maxWidthPx - normalSize) / 2
 
-        // C. Header (Top Left Small)
         val headerSize = with(density) { 46.dp.toPx() }
         val headerTop = topSafeArea + with(density) { 12.dp.toPx() }
         val headerStart = with(density) { PlayerHorizontalPadding.toPx() }
         val headerRadius = with(density) { 4.dp.toPx() }
 
-        // --- 2. 坐标插值 ---
         val targetSize = lerp(normalSize, headerSize, lyricAnimFraction)
         val targetTop = lerp(normalTop, headerTop, lyricAnimFraction)
         val targetStart = lerp(normalStart, headerStart, lyricAnimFraction)
@@ -193,7 +182,6 @@ fun AppleMusicPlayer(
         val shadowAlpha = if (sheetProgress > 0.8f) (1f - lyricAnimFraction) else 0f
         var mShadowElevation = 16.dp * shadowAlpha
 
-        // --- 3. UI Structure ---
         BottomSheet(
             state = state,
             modifier = Modifier.fillMaxSize(),
@@ -228,7 +216,6 @@ fun AppleMusicPlayer(
                 }
             }
 
-            // 🌟 核心：将流体背景放在最底层，提供 QPlayer 风格的动态光晕
             FluidBackground(
                 imageUrl = coverUrl,
                 audioVisualizerManager = audioVisualizerManager,
@@ -237,7 +224,6 @@ fun AppleMusicPlayer(
 
             Box(modifier = Modifier.fillMaxSize()) {
 
-                // Mode B: Lyric Player
                 AnimatedVisibility(
                     visible = showLyrics,
                     enter = fadeIn(),
@@ -253,7 +239,7 @@ fun AppleMusicPlayer(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .weight(1f)
-                                .padding(horizontal = 20.dp), // 宽敞舒适的排版边距
+                                .padding(horizontal = 20.dp),
                             onClick = {
                                 mediaMetadata?.let {
                                     if (overlayHandler.currentOverlayValue is OverlayState.None) {
@@ -281,7 +267,6 @@ fun AppleMusicPlayer(
                     }
                 }
 
-                // Mode C: Header Info
                 if (mediaMetadata != null) {
                     val fraction = lyricAnimFraction
                     val enterThreshold = 0.4f
@@ -346,7 +331,6 @@ fun AppleMusicPlayer(
                     }
                 }
 
-                // --- 统一的底部控制区域 ---
                 Column(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
@@ -460,5 +444,6 @@ fun AppleMusicPlayer(
         }
     }
 }
+
 
 
