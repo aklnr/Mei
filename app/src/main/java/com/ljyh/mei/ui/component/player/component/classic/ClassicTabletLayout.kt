@@ -82,10 +82,10 @@ fun ClassicTabletLayout(
             .padding(horizontal = 24.dp, vertical = 12.dp)
     ){
 
-        // 左侧播放控制与信息区（加宽至 0.52f，适应 16:9 投屏）
+        // 左侧播放控制与信息区（权重微调至 0.46f，为右侧让出更多车机横向屏幕空间）
         Column(
             modifier = Modifier
-                .weight(0.52f)
+                .weight(0.46f)
                 .fillMaxHeight(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
@@ -97,19 +97,19 @@ fun ClassicTabletLayout(
                     mediaMetadata = it,
                     isPlaying = isPlaying,
                     modifier = Modifier
-                        .fillMaxWidth(0.85f) // 保持封面展示尺寸
+                        .fillMaxWidth(0.85f) // 保持封面展示尺寸不变
                         .aspectRatio(1f)
                 )
             }
 
-            Spacer(Modifier.height(8.dp)) // 压缩封面与标题间距
+            Spacer(Modifier.height(8.dp))
 
             mediaMetadata?.let {
                 PlayerHeader(
                     mediaMetadata = it,
                     modifier = Modifier
-                        .fillMaxWidth(0.98f) // 👈 调大至 0.98f，给歌名和右侧按钮释放极致横向空间
-                        .padding(horizontal = 2.dp), // 👈 缩减外边距，让图标贴近边缘
+                        .fillMaxWidth(0.98f)
+                        .padding(horizontal = 2.dp),
                     onClick = {
                         overlayHandler.showAlbumArtist(it.album, it.artists, it.coverUrl)
                     },
@@ -123,7 +123,7 @@ fun ClassicTabletLayout(
                 )
             }
 
-            Spacer(Modifier.height(8.dp)) // 压缩标题与进度条间距
+            Spacer(Modifier.height(8.dp))
 
             if (progressBarStyle == ProgressBarStyle.LINEAR) {
                 FluidProgressSlider(
@@ -133,7 +133,7 @@ fun ClassicTabletLayout(
                         stateContainer.playerConnection.player.seekTo(newPosition)
                     },
                     modifier = Modifier
-                        .fillMaxWidth(0.96f) // 同步调宽进度条
+                        .fillMaxWidth(0.96f)
                         .padding(horizontal = 4.dp)
                 )
             } else {
@@ -150,7 +150,7 @@ fun ClassicTabletLayout(
                 )
             }
 
-            Spacer(Modifier.height(6.dp)) // 压缩进度条与按键间距
+            Spacer(Modifier.height(6.dp))
 
             PlayerTableControls(
                 playerConnection = stateContainer.playerConnection,
@@ -166,17 +166,17 @@ fun ClassicTabletLayout(
 
         }
 
-        Spacer(Modifier.width(20.dp))
+        Spacer(Modifier.width(16.dp)) // 缩减左右大区之间的间隔，给歌词腾出更多余量
 
         val tabletAnimStyle by rememberEnumPreference(
             key = TabletAnimationStyleKey,
             defaultValue = TabletAnimationStyle.FLIP_3D
         )
 
-        // 右侧歌词展示区
+        // 右侧歌词展示区（权重扩大至 0.54f，并将左右边距缩小到 4.dp，使歌词拉宽变长）
         Box(
             modifier = Modifier
-                .weight(0.48f)
+                .weight(0.54f)
                 .fillMaxHeight(0.98f)
                 .align(Alignment.CenterVertically)
         ) {
@@ -186,7 +186,7 @@ fun ClassicTabletLayout(
                     playerConnection = stateContainer.playerConnection,
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(horizontal = PlayerHorizontalPadding),
+                        .padding(horizontal = 4.dp), // 👈 左右内边距压缩到 4.dp，让单行歌词拉长、空间最大化
                     onClick = {
                         mediaMetadata?.let {
                             if (overlayHandler.currentOverlayValue is OverlayState.None) {
@@ -265,7 +265,7 @@ fun ClassicTabletLayout(
                     androidx.compose.animation.AnimatedVisibility(
                         visible = isShowingPlaylist,
                         enter = slideInHorizontally { it } + fadeIn(),
-                        exit = slideOutHorizontally { it } + fadeOut(),
+                        exit = slideOutHorizontally { -it } + fadeOut(),
                         modifier = Modifier.fillMaxSize()
                     ) {
                         playlistContent()
@@ -313,5 +313,6 @@ fun ClassicTabletLayout(
         }
     }
 }
+
 
 
