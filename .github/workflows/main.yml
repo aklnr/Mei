@@ -1,4 +1,4 @@
-name: Release
+Name: Release
 on:
   push:
     tags:
@@ -20,20 +20,22 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && github.ref || github.ref }}
 
-      - uses: actions/setup-java@v3
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 21
+          cache: 'gradle' # 👈 加速核心 1：自动缓存下载的依赖库
 
-      # 使用 assembleDebug 自动编译并附加 Debug 通用签名
+      # 使用 assembleDebug 自动编译，并加入加速标志
       - uses: gradle/gradle-build-action@v2
         with:
           gradle-version: current
-          arguments: assembleDebug
+          # 👈 加速核心 2：开启并行编译、构建缓存，跳过耗时的测试和代码扫描
+          arguments: assembleDebug --build-cache --parallel -x test -x lint
 
       # 查找生成的 Debug APK 并重命名
       - name: Rename APK file
@@ -81,6 +83,7 @@ jobs:
           generateReleaseNotes: true
           body: ${{ steps.release_notes.outputs.BODY }}
           skipIfReleaseExists: true
+
 
 
 
