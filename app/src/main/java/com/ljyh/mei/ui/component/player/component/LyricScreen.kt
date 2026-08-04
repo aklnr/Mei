@@ -9,24 +9,15 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -81,9 +72,6 @@ fun LyricScreen(
     val listState = rememberLazyListState()
     val context = LocalContext.current
     var animatedPosition by remember { mutableLongStateOf(0) }
-
-    // 👈 1. 柔和精致的辉光：透明度降到 0.5f，不再像硬白雾
-    val glowColor = Color.White.copy(alpha = 0.5f)
 
     val (normalLyricTextSize, _) = rememberEnumPreference(
         NormalLyricTextSizeKey,
@@ -185,31 +173,35 @@ fun LyricScreen(
                         },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 2.dp),
+                            .padding(horizontal = 24.dp), // 👈 QPlayer 风格的宽边距，提供完美呼吸留白
+
+                        // 🌟 QPlayer 核心体验：当前播放行（聚焦放大、绝对纯净、发光晕染）
                         normalLineTextStyle = LocalTextStyle.current.copy(
                             fontFamily = PingFangFontFamily,
-                            fontSize = normalFontSize,
-                            lineHeight = normalFontSize * 1.18f,
-                            fontWeight = if (normalLyricTextBold) FontWeight.Bold else FontWeight.Normal,
+                            fontSize = normalFontSize * 1.08f, // 焦点略微放大
+                            lineHeight = normalFontSize * 1.4f,  // 优雅的行高
+                            fontWeight = if (normalLyricTextBold) FontWeight.Bold else FontWeight.SemiBold,
                             textMotion = TextMotion.Animated,
                             color = Color.White,
                             shadow = Shadow(
-                                color = glowColor,
+                                color = Color.White.copy(alpha = 0.5f), // 细腻纯白发光
                                 offset = Offset(0f, 0f),
-                                blurRadius = 15f
+                                blurRadius = 18f
                             )
                         ),
+
+                        // 🌟 QPlayer 核心体验：非当前行（深度沉浸压暗，视觉绝对集中）
                         accompanimentLineTextStyle = LocalTextStyle.current.copy(
                             fontFamily = PingFangFontFamily,
                             fontSize = accompanimentFontSize,
-                            lineHeight = accompanimentFontSize * 1.18f,
+                            lineHeight = accompanimentFontSize * 1.4f,
                             fontWeight = if (accompanimentLyricTextBold) FontWeight.Bold else FontWeight.Normal,
                             textMotion = TextMotion.Animated,
-                            color = Color.White.copy(alpha = 0.55f),
+                            color = Color.White.copy(alpha = 0.35f), // 降低非当前行透明度，制造极强纵深
                             shadow = Shadow(
-                                color = Color.White.copy(alpha = 0.15f),
+                                color = Color.Transparent,
                                 offset = Offset(0f, 0f),
-                                blurRadius = 8f
+                                blurRadius = 0f
                             )
                         )
                     )
@@ -261,5 +253,6 @@ private fun LyricSourceBadge(
         )
     }
 }
+
 
 
