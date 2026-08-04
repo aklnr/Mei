@@ -35,9 +35,8 @@ fun PlayerControlsSection(
     onSleepTimerClick: () -> Unit,
     onAddToPlaylistClick: () -> Unit,
     onMoreClick: () -> Unit,
-    isCompact: Boolean = false // 新增参数
+    isCompact: Boolean = false
 ) {
-    // 紧凑模式下间距减半
     val spacerHeight = if (isCompact) 8.dp else 24.dp
 
     val (progressBarStyle, _) = rememberEnumPreference(
@@ -65,7 +64,7 @@ fun PlayerControlsSection(
             PlayerProgressSlider(
                 position = sliderPosition.toLong(),
                 duration = duration,
-                isPlaying = isPlaying, // 波浪进度条需要这个参数
+                isPlaying = isPlaying,
                 onPositionChange = { newPosition ->
                     playerConnection.player.seekTo(newPosition)
                 },
@@ -75,7 +74,6 @@ fun PlayerControlsSection(
             )
         }
 
-
         Spacer(Modifier.height(spacerHeight))
 
         Box(
@@ -84,7 +82,7 @@ fun PlayerControlsSection(
                 .padding(horizontal = PlayerHorizontalPadding)
         ) {
             PlayerControls(
-                playerConnection = playerConnection,
+                playerConnection = playerConnection, // 👈 补上这一行传参
                 canSkipPrevious = !isFM.value || playerConnection.player.hasPreviousMediaItem(),
                 canSkipNext = playerConnection.player.hasNextMediaItem(),
                 isPlaying = isPlaying,
@@ -93,7 +91,6 @@ fun PlayerControlsSection(
             )
         }
 
-        // 紧凑模式下可能需要隐藏底部 Toolbar 或者减小间距
         if (!isCompact) {
             Spacer(Modifier.height(spacerHeight))
             PlayerActionToolbar(
@@ -107,7 +104,6 @@ fun PlayerControlsSection(
             Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
             Spacer(Modifier.height(16.dp))
         } else {
-            // 紧凑模式底部留白少一点
             Spacer(Modifier.height(16.dp))
         }
     }
