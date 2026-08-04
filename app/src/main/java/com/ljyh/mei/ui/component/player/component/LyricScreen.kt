@@ -1,48 +1,36 @@
 
-
-
 package com.ljyh.mei.ui.component.player.component
 
 import android.widget.Toast
 import androidx.annotation.OptIn
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextMotion
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.media3.common.util.UnstableApi
@@ -53,13 +41,8 @@ import com.ljyh.mei.ui.model.LyricSource
 import com.ljyh.mei.utils.setClipboard
 import com.mocharealm.accompanist.lyrics.core.model.karaoke.KaraokeLine
 import com.mocharealm.accompanist.lyrics.core.model.synced.SyncedLine
+import com.mocharealm.accompanist.lyrics.ui.composable.lyrics.KaraokeLyricsView
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-
-val PingFangFontFamily = FontFamily(
-    Font(resId = R.font.pingfang, weight = FontWeight.Normal),
-    Font(resId = R.font.pingfang, weight = FontWeight.Bold)
-)
 
 @OptIn(UnstableApi::class)
 @Composable
@@ -74,7 +57,6 @@ fun LyricScreen(
 ) {
     val listState = rememberLazyListState()
     val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
     var animatedPosition by remember { mutableLongStateOf(0) }
 
     LaunchedEffect(controlsVisible) {
@@ -106,37 +88,10 @@ fun LyricScreen(
                 animatedPosition = (playerConnection.player.currentPosition).coerceAtMost(
                     playerConnection.player.duration
                 )
-                delay(50)
+                delay(30) // 更高频的刷新，让逐字高亮像 QPlayer 一样丝滑
             }
         } else {
             animatedPosition = playerConnection.player.currentPosition
-        }
-    }
-
-    val lines = remember(lyricData) {
-        lyricData.lyricLine.lines
-    }
-
-    val currentIndex = remember(animatedPosition, lines) {
-        val index = lines.indexOfLast { line ->
-            val startTime = when (line) {
-                is KaraokeLine -> line.start
-                is SyncedLine -> line.start
-                else -> 0
-            }
-            startTime <= animatedPosition
-        }
-        if (index == -1) 0 else index
-    }
-
-    LaunchedEffect(currentIndex) {
-        if (lines.isNotEmpty()) {
-            coroutineScope.launch {
-                listState.animateScrollToItem(
-                    index = maxOf(0, currentIndex - 2),
-                    scrollOffset = 0
-                )
-            }
         }
     }
 
@@ -149,99 +104,67 @@ fun LyricScreen(
                 interactionSource = remember { MutableInteractionSource() }
             ) { onToggleControls(true) }
     ) {
-        if (lines.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(
-                    text = "暂无歌词",
-                    color = Color.White.copy(alpha = 0.5f),
-                    fontSize = 16.sp
+        if (lyricData.lyricLine.lines.isNotEmpty()) {
+            key(System.identityHashCode(lyricData.lyricLine)) {
+                KaraokeLyricsView(
+                    listState = listState,
+                    lyrics = lyricData.lyricLine,
+                    currentPosition = { animatedPosition.toInt() },
+                    onLineClicked = { line ->
+                        playerConnection.player.seekTo(line.start.toLong())
+                        onToggleControls(true)
+                    },
+                    onLinePressed = { line ->
+                        val result = when (line) {
+                            is KaraokeLine -> "${line.syllables.joinToString("") { it.content }}\n${line.translation}"
+                            is SyncedLine -> "${line.content}\n${line.translation}"
+                            else -> null
+                        }
+                        result?.let { setClipboard(context, it, "lyric") }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp),
+
+                    // 🌟 QPlayer 核心效果：当前播放行（绝对纯净高亮白光、微放大、发光晕染）
+                    normalLineTextStyle = LocalTextStyle.current.copy(
+                        fontSize = 22.sp,
+                        lineHeight = 32.sp,
+                        fontWeight = FontWeight.Bold,
+                        textMotion = TextMotion.Animated,
+                        color = Color.White,
+                        shadow = Shadow(
+                            color = Color.White.copy(alpha = 0.6f),
+                            offset = Offset(0f, 0f),
+                            blurRadius = 16f
+                        )
+                    ),
+
+                    // 🌟 QPlayer 核心效果：非当前行（深度压暗至 0.25 透明度，拒绝喧宾夺主）
+                    accompanimentLineTextStyle = LocalTextStyle.current.copy(
+                        fontSize = 18.sp,
+                        lineHeight = 26.sp,
+                        fontWeight = FontWeight.Normal,
+                        textMotion = TextMotion.Animated,
+                        color = Color.White.copy(alpha = 0.25f),
+                        shadow = Shadow(
+                            color = Color.Transparent,
+                            offset = Offset(0f, 0f),
+                            blurRadius = 0f
+                        )
+                    )
                 )
             }
-        } else {
-            LazyColumn(
-                state = listState,
+
+            LyricSourceBadge(
+                source = lyricData.source,
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                contentPadding = PaddingValues(vertical = 220.dp)
-            ) {
-                itemsIndexed(lines) { index, line ->
-                    val isSelected = index == currentIndex
-
-                    val scaleAnim by animateFloatAsState(
-                        targetValue = if (isSelected) 1.12f else 1.0f,
-                        animationSpec = spring(dampingRatio = 0.75f, stiffness = 250f),
-                        label = "Scale"
-                    )
-
-                    val alphaAnim by animateFloatAsState(
-                        targetValue = if (isSelected) 1.0f else 0.3f,
-                        animationSpec = spring(stiffness = 200f),
-                        label = "Alpha"
-                    )
-
-                    val contentText = when (line) {
-                        is KaraokeLine -> line.syllables.joinToString("") { it.content }
-                        is SyncedLine -> line.content
-                        else -> ""
-                    }
-
-                    val translationText = when (line) {
-                        is KaraokeLine -> line.translation
-                        is SyncedLine -> line.translation
-                        else -> null
-                    }
-
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 14.dp)
-                            .scale(scaleAnim)
-                            .alpha(alphaAnim)
-                            .clickable {
-                                val startTime = when (line) {
-                                    is KaraokeLine -> line.start
-                                    is SyncedLine -> line.start
-                                    else -> 0
-                                }
-                                playerConnection.player.seekTo(startTime.toLong())
-                                onToggleControls(true)
-                            },
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = contentText,
-                            color = Color.White,
-                            fontSize = 20.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                            textAlign = TextAlign.Center,
-                            lineHeight = 28.sp
-                        )
-
-                        if (!translationText.isNullOrEmpty()) {
-                            Spacer(modifier = Modifier.padding(top = 4.dp))
-                            Text(
-                                text = translationText,
-                                color = Color.White.copy(alpha = if (isSelected) 0.8f else 0.2f),
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Normal,
-                                textAlign = TextAlign.Center
-                            )
-                        }
-                    }
-                }
-            }
+                    .align(Alignment.BottomEnd)
+                    .padding(16.dp),
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
         }
-
-        LyricSourceBadge(
-            source = lyricData.source,
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(16.dp),
-            onClick = onClick,
-            onLongClick = onLongClick
-        )
     }
 }
 
