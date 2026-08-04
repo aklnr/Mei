@@ -1,3 +1,5 @@
+
+
 package com.ljyh.mei.ui.component.player.component
 
 import androidx.compose.animation.animateColorAsState
@@ -29,7 +31,6 @@ fun FluidBackground(
 ) {
     val context = LocalContext.current
 
-    // 🌟 给一个更有生机和亮度的默认渐变色，绝不显示单调的灰色
     var vibrantColor by remember { mutableStateOf(Color(0xFF4A90E2)) }
     var darkMutedColor by remember { mutableStateOf(Color(0xFF2C3E50)) }
 
@@ -40,7 +41,6 @@ fun FluidBackground(
                 val loader = ImageLoader(context)
                 val request = ImageRequest.Builder(context)
                     .data(imageUrl)
-                    .allowHardware(false) // 必须关闭硬件加速才能成功转成 Bitmap 给 Palette
                     .size(256)
                     .build()
                 
@@ -48,7 +48,6 @@ fun FluidBackground(
                 if (result is SuccessResult) {
                     val bitmap = result.image.toBitmap()
                     Palette.from(bitmap).generate().let { palette ->
-                        // 智能降级取色，确保无论图片是什么色调都能提取到艳丽的颜色
                         val dominant = palette.getDominantColor(0xFF3F51B5.toInt())
                         val vibrant = palette.getVibrantColor(dominant)
                         val muted = palette.getMutedColor(dominant)
@@ -63,17 +62,15 @@ fun FluidBackground(
         }
     }
 
-    val crossFadeDuration = 800
-
     val animatedPrimary by animateColorAsState(
         targetValue = vibrantColor,
-        animationSpec = tween(durationMillis = crossFadeDuration),
+        animationSpec = tween(durationMillis = 800),
         label = "QPlayerPrimaryColor"
     )
 
     val animatedSecondary by animateColorAsState(
         targetValue = darkMutedColor,
-        animationSpec = tween(durationMillis = crossFadeDuration),
+        animationSpec = tween(durationMillis = 800),
         label = "QPlayerSecondaryColor"
     )
 
@@ -81,12 +78,11 @@ fun FluidBackground(
         modifier = modifier
             .fillMaxSize()
             .background(
-                // 🌟 大幅提高透明度和辐射半径，让色彩像 QPlayer 一样大面积暈染开，绝对告别灰色
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        animatedPrimary.copy(alpha = 0.95f),   // 核心主色高强度晕染
-                        animatedSecondary.copy(alpha = 0.85f), // 辅助色过渡
-                        Color(0xFF0A0A0A)                    // 边缘深色收尾
+                        animatedPrimary.copy(alpha = 0.95f),
+                        animatedSecondary.copy(alpha = 0.85f),
+                        Color(0xFF0A0A0A)
                     ),
                     radius = 2200f
                 )
@@ -95,4 +91,3 @@ fun FluidBackground(
         content()
     }
 }
-
