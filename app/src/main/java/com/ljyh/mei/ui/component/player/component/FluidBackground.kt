@@ -50,7 +50,6 @@ fun FluidBackground(
     val (volumeScale) = rememberPreference(MeshLowFreqVolumeKey, defaultValue = 0.1f)
     val (subdivision) = rememberPreference(MeshSubdivisionKey, defaultValue = 50)
 
-    // 1. 将图片加载逻辑独立出来，提取 Bitmap
     val albumBitmap by produceState<Bitmap?>(null, imageUrl) {
         if (imageUrl.isNullOrEmpty()) {
             value = null
@@ -72,7 +71,6 @@ fun FluidBackground(
 
     val shouldAnimate = !meshPlaying || isPlaying
 
-    // 👈 响应重低音鼓点的轻微呼吸缩放（1.0 ~ 1.06 随低音跳动）
     val bassScale by animateFloatAsState(
         targetValue = 1f + (bass * volumeScale * 0.15f).coerceIn(0f, 0.08f),
         animationSpec = tween(durationMillis = 100),
@@ -80,7 +78,7 @@ fun FluidBackground(
     )
 
     Box(modifier = modifier.fillMaxSize()) {
-        // 👈 1. 动态 Mesh 弥散渲染层（调小 blur 模糊，保留高饱和色彩）
+        // 👈 1. 关键修复：blur 调回 28.dp！抹平网格噪点，让色彩混合像水墨一样均匀自然！
         AndroidView(
             factory = { ctx ->
                 MeshBackgroundView(ctx).apply {
@@ -106,24 +104,25 @@ fun FluidBackground(
             },
             modifier = Modifier
                 .fillMaxSize()
-                .scale(bassScale) // 重低音呼吸伸缩
-                .blur(2.dp)       // 👈 降到 2.dp，让背景颜色不再变灰浑浊，还原极致通透色彩
+                .scale(bassScale)
+                .blur(28.dp) // 👈 28.dp 柔化网格，恢复均匀平滑的弥散色彩
         )
 
-        // 👈 2. 超级通透的极淡渐变遮罩（不再把色彩压发灰）
+        // 👈 2. 优雅渐变保护层（微暗度，保证文字清晰的同时颜色依旧亮丽）
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     brush = Brush.verticalGradient(
                         colors = listOf(
-                            Color.Black.copy(alpha = 0.15f), // 顶部顶部标题栏（极淡保护色）
-                            Color.Transparent,               // 中间歌词区域 100% 纯净通透！
-                            Color.Black.copy(alpha = 0.25f)  // 底部控制区稍微加一点点暗色兜底
+                            Color.Black.copy(alpha = 0.18f),
+                            Color.Black.copy(alpha = 0.05f),
+                            Color.Black.copy(alpha = 0.28f)
                         )
                     )
                 )
         )
     }
 }
+
 
