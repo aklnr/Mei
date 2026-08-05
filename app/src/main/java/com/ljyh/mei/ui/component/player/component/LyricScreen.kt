@@ -3,6 +3,8 @@ package com.ljyh.mei.ui.component.player.component
 import android.graphics.BlurMaskFilter
 import android.graphics.LinearGradient
 import android.graphics.Paint as NativePaint
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffXfermode
 import android.graphics.Shader
 import android.graphics.Typeface
 import androidx.annotation.OptIn
@@ -43,12 +45,6 @@ import com.ljyh.mei.ui.model.LyricSource
 import com.mocharealm.accompanist.lyrics.core.model.karaoke.KaraokeLine
 import com.mocharealm.accompanist.lyrics.core.model.synced.SyncedLine
 import kotlinx.coroutines.delay
-import kotlin.math.exp
-import kotlin.math.sqrt
-
-private const val LIFT_PEAK_PX = 8.0f
-private const val LIFT_OMEGA0 = 3.7416574
-private const val LIFT_ZETA = 0.935414
 
 @OptIn(UnstableApi::class)
 @Composable
@@ -97,7 +93,7 @@ fun LyricScreen(
         }
     }
 
-    // 🌟 60FPS 无缝平滑刷帧
+    // 🌟 60FPS 平滑刷帧
     LaunchedEffect(playerConnection.isPlaying) {
         if (playerConnection.isPlaying.value) {
             while (true) {
@@ -111,25 +107,24 @@ fun LyricScreen(
 
     val lines = remember(lyricData) { lyricData.lyricLine.lines }
 
-    // 基础底层 Paint（未唱到的部分，保持 35% 白半透明）
-    val basePaint = remember(pingFangTypeface) {
+    // 焦点整句 Paint (高亮层)
+    val activePaint = remember(pingFangTypeface) {
         NativePaint().apply {
             isAntiAlias = true
             color = android.graphics.Color.WHITE
-            alpha = (255 * 0.35f).toInt()
             textSize = with(density) { 28.sp.toPx() }
             typeface = Typeface.create(pingFangTypeface, Typeface.BOLD)
         }
     }
 
-    // 高亮发光 Paint
-    val glowPaint = remember(pingFangTypeface) {
+    // 焦点整句 Paint (底色 30% 透明度)
+    val baseInactivePaint = remember(pingFangTypeface) {
         NativePaint().apply {
             isAntiAlias = true
             color = android.graphics.Color.WHITE
+            alpha = (255 * 0.30f).toInt()
             textSize = with(density) { 28.sp.toPx() }
             typeface = Typeface.create(pingFangTypeface, Typeface.BOLD)
-            maskFilter = BlurMaskFilter(20f, BlurMaskFilter.Blur.NORMAL)
         }
     }
 
@@ -138,9 +133,20 @@ fun LyricScreen(
         NativePaint().apply {
             isAntiAlias = true
             color = android.graphics.Color.WHITE
-            alpha = (255 * 0.25f).toInt()
+            alpha = (255 * 0.20f).toInt()
             textSize = with(density) { 22.sp.toPx() }
             typeface = Typeface.create(pingFangTypeface, Typeface.NORMAL)
+        }
+    }
+
+    // Glow 发光 Paint
+    val glowPaint = remember(pingFangTypeface) {
+        NativePaint().apply {
+            isAntiAlias = true
+            color = android.graphics.Color.WHITE
+            textSize = with(density) { 28.sp.toPx() }
+            typeface = Typeface.create(pingFangTypeface, Typeface.BOLD)
+            maskFilter = BlurMaskFilter(24f, BlurMaskFilter.Blur.NORMAL)
         }
     }
 
@@ -216,63 +222,61 @@ fun LyricScreen(
                             val duration: Long = (nextLineStart - lineStart).coerceAtLeast(1000L)
                             val progress = ((animatedPosition - lineStart).toFloat() / duration.toFloat()).coerceIn(0f, 1f)
 
-                            val totalWidth = basePaint.measureText(contentText)
+                            val totalWidth = activePaint.measureText(contentText)
 
-                            // 🌟 1. 绘制底层 35% 白半透明暗字
-                            drawContext.canvas.nativeCanvas.drawText(contentText, startX, lineTopY, basePaint)
+                            // 1. 先绘制 30% 透明度的完整底字
+                            drawContext.canvas.nativeCanvas.drawText(contentText, startX, lineTopY, baseInactivePaint)
 
-                            // 🌟 2. 核心：创建 Apple Music 风格的线性渐变扫字 Shader
-                            val activeWidth = totalWidth * progress
-                            val gradientWidth = 30f // 渐变边缘羽化宽度
+                            // 2. 🌟 核心：使用 Mask 涂层合成整行连续的高亮推进效果
+                            val nativeCanvas = drawContext.canvas.nativeCanvas
+                            val layer = nativeCanvas.saveLayer(
+                                startX - 50f,
+                                lineTopY - 100f,
+                                startX + totalWidth + 50f,
+                                lineTopY + 50f,
+                                null
+                            )
 
-                            if (activeWidth > 0f) {
-                                val sweepPaint = NativePaint(basePaint).apply {
-                                    alpha = 255
-                                    shader = LinearGradient(
-                                        startX + activeWidth - gradientWidth,
-                                        lineTopY,
-                                        startX + activeWidth + gradientWidth,
-                                        lineTopY,
-                                        intArrayOf(
-                                            android.graphics.Color.WHITE,
-                                            android.graphics.Color.WHITE,
-                                            android.graphics.Color.TRANSPARENT
-                                        ),
-                                        floatArrayOf(0f, 0.5f, 1f),
-                                        Shader.TileMode.CLAMP
-                                    )
-                                }
+                            // Step A: 绘制完整的白色亮字纹理
+                            nativeCanvas.drawText(contentText, startX, lineTopY, activePaint)
 
-                                // 绘制高亮扫字
-                                drawContext.canvas.nativeCanvas.drawText(contentText, startX, lineTopY, sweepPaint)
+                            // Step B: 使用 SRC_IN 模式只保留进度局部的亮字
+                            val currentActiveWidth = totalWidth * progress
+                            val featherWidth = 40f // 渐变羽化边缘宽度
+                            val maskPaint = NativePaint().apply {
+                                xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN)
+                                shader = LinearGradient(
+                                    startX + currentActiveWidth - featherWidth,
+                                    lineTopY,
+                                    startX + currentActiveWidth + featherWidth,
+                                    lineTopY,
+                                    intArrayOf(
+                                        android.graphics.Color.WHITE,
+                                        android.graphics.Color.WHITE,
+                                        android.graphics.Color.TRANSPARENT
+                                    ),
+                                    floatArrayOf(0f, 0.5f, 1f),
+                                    Shader.TileMode.CLAMP
+                                )
+                            }
 
-                                // 🌟 3. 在当前正在唱到的字符位置，叠加 Glow 发光 + 物理微抬升
-                                var curX = startX
-                                val charCount = contentText.length
-                                for (i in 0 until charCount) {
-                                    val ch = contentText[i].toString()
-                                    val charWidth = basePaint.measureText(ch)
-                                    val charProgressStart = i.toFloat() / charCount.toFloat()
+                            nativeCanvas.drawRect(
+                                startX - 20f,
+                                lineTopY - 80f,
+                                startX + currentActiveWidth + featherWidth,
+                                lineTopY + 40f,
+                                maskPaint
+                            )
 
-                                    if (progress >= charProgressStart) {
-                                        val charTau = (progress - charProgressStart) * (duration / 1000.0)
-                                        val liftK = computeLiftSpringK(charTau)
-                                        val offsetY = -LIFT_PEAK_PX * liftK
+                            nativeCanvas.restoreToCount(layer)
 
-                                        // Glow 发光 Pass
-                                        glowPaint.alpha = (255 * 0.45f * (1f - liftK * 0.3f)).toInt()
-                                        drawContext.canvas.nativeCanvas.drawText(
-                                            ch,
-                                            curX,
-                                            lineTopY + offsetY,
-                                            glowPaint
-                                        )
-                                    }
-                                    curX += charWidth
-                                }
+                            // 3. 边缘发光粒子的微弱 Glow 效果
+                            if (currentActiveWidth > 0f) {
+                                glowPaint.alpha = (255 * 0.30f).toInt()
+                                nativeCanvas.drawText(contentText, startX, lineTopY, glowPaint)
                             }
                         } else {
-                            // 非焦点行
+                            // 非焦点句
                             drawContext.canvas.nativeCanvas.drawText(contentText, startX, lineTopY, dimPaint)
                         }
                     }
@@ -289,16 +293,6 @@ fun LyricScreen(
             onLongClick = onLongClick
         )
     }
-}
-
-private fun computeLiftSpringK(tau: Double): Float {
-    if (tau <= 0.0 || tau > 1.2) return 0f
-    val zw = LIFT_ZETA * LIFT_OMEGA0
-    val wd = LIFT_OMEGA0 * sqrt(1.0 - LIFT_ZETA * LIFT_ZETA)
-    val env = exp(-zw * tau)
-    var y = 1.0 - env * (kotlin.math.cos(wd * tau) + (zw / wd) * kotlin.math.sin(wd * tau))
-    if (y < 0.0) y = 0.0
-    return y.toFloat()
 }
 
 @Composable
@@ -334,3 +328,4 @@ private fun LyricSourceBadge(
         )
     }
 }
+
