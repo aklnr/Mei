@@ -1,8 +1,9 @@
-
 package com.ljyh.mei.ui.component.player.component
 
 import android.graphics.BlurMaskFilter
+import android.graphics.LinearGradient
 import android.graphics.Paint as NativePaint
+import android.graphics.Shader
 import android.graphics.Typeface
 import androidx.annotation.OptIn
 import androidx.compose.foundation.Canvas
@@ -45,7 +46,7 @@ import kotlinx.coroutines.delay
 import kotlin.math.exp
 import kotlin.math.sqrt
 
-private const val LIFT_PEAK_PX = 6.0f
+private const val LIFT_PEAK_PX = 8.0f
 private const val LIFT_OMEGA0 = 3.7416574
 private const val LIFT_ZETA = 0.935414
 
@@ -96,6 +97,7 @@ fun LyricScreen(
         }
     }
 
+    // 🌟 60FPS 无缝平滑刷帧
     LaunchedEffect(playerConnection.isPlaying) {
         if (playerConnection.isPlaying.value) {
             while (true) {
@@ -109,30 +111,34 @@ fun LyricScreen(
 
     val lines = remember(lyricData) { lyricData.lyricLine.lines }
 
-    val textPaint = remember(pingFangTypeface) {
+    // 基础底层 Paint（未唱到的部分，保持 35% 白半透明）
+    val basePaint = remember(pingFangTypeface) {
         NativePaint().apply {
             isAntiAlias = true
             color = android.graphics.Color.WHITE
-            textSize = with(density) { 26.sp.toPx() }
+            alpha = (255 * 0.35f).toInt()
+            textSize = with(density) { 28.sp.toPx() }
             typeface = Typeface.create(pingFangTypeface, Typeface.BOLD)
         }
     }
 
+    // 高亮发光 Paint
     val glowPaint = remember(pingFangTypeface) {
         NativePaint().apply {
             isAntiAlias = true
             color = android.graphics.Color.WHITE
-            textSize = with(density) { 26.sp.toPx() }
+            textSize = with(density) { 28.sp.toPx() }
             typeface = Typeface.create(pingFangTypeface, Typeface.BOLD)
-            maskFilter = BlurMaskFilter(16f, BlurMaskFilter.Blur.NORMAL)
+            maskFilter = BlurMaskFilter(20f, BlurMaskFilter.Blur.NORMAL)
         }
     }
 
+    // 非焦点行 Paint
     val dimPaint = remember(pingFangTypeface) {
         NativePaint().apply {
             isAntiAlias = true
             color = android.graphics.Color.WHITE
-            alpha = (255 * 0.30f).toInt()
+            alpha = (255 * 0.25f).toInt()
             textSize = with(density) { 22.sp.toPx() }
             typeface = Typeface.create(pingFangTypeface, Typeface.NORMAL)
         }
@@ -169,17 +175,17 @@ fun LyricScreen(
             }
 
             var scrollYOffset by remember { mutableFloatStateOf(0f) }
-            val targetScrollY = currentIndex * with(density) { 68.dp.toPx() }
+            val targetScrollY = currentIndex * with(density) { 72.dp.toPx() }
 
             LaunchedEffect(targetScrollY) {
-                scrollYOffset += (targetScrollY - scrollYOffset) * 0.15f
+                scrollYOffset += (targetScrollY - scrollYOffset) * 0.12f
             }
 
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val canvasHeight = size.height
-                val startX = 70f
+                val startX = 80f
                 val centerY = canvasHeight * 0.38f
-                val lineSpacingPx = 68.dp.toPx()
+                val lineSpacingPx = 72.dp.toPx()
 
                 lines.forEachIndexed { index, line ->
                     val lineTopY = centerY + (index * lineSpacingPx) - scrollYOffset
@@ -193,7 +199,6 @@ fun LyricScreen(
                         }
 
                         if (isSelected) {
-                            // 🌟 强转为 Long，彻底解决类型推导问题
                             val lineStart: Long = when (line) {
                                 is KaraokeLine -> line.start.toLong()
                                 is SyncedLine -> line.start.toLong()
@@ -206,58 +211,56 @@ fun LyricScreen(
                                     is SyncedLine -> next.start.toLong()
                                     else -> lineStart + 4000L
                                 }
-                            } else {
-                                lineStart + 4000L
-                            }
+                            } else lineStart + 4000L
 
                             val duration: Long = (nextLineStart - lineStart).coerceAtLeast(1000L)
                             val progress = ((animatedPosition - lineStart).toFloat() / duration.toFloat()).coerceIn(0f, 1f)
 
-                            var curX = startX
+                            val totalWidth = basePaint.measureText(contentText)
 
-                            if (line is KaraokeLine && line.syllables.isNotEmpty()) {
-                                line.syllables.forEach { syllable ->
-                                    val sylText = syllable.content
-                                    val sylStart = syllable.start.toLong()
-                                    val isSung = animatedPosition >= sylStart
+                            // 🌟 1. 绘制底层 35% 白半透明暗字
+                            drawContext.canvas.nativeCanvas.drawText(contentText, startX, lineTopY, basePaint)
 
-                                    val tau = if (isSung) (animatedPosition - sylStart) / 1000.0 else 0.0
-                                    val liftK = if (isSung) computeLiftSpringK(tau) else 0f
-                                    val offsetY = -LIFT_PEAK_PX * liftK
+                            // 🌟 2. 核心：创建 Apple Music 风格的线性渐变扫字 Shader
+                            val activeWidth = totalWidth * progress
+                            val gradientWidth = 30f // 渐变边缘羽化宽度
 
-                                    if (isSung) {
-                                        glowPaint.alpha = (255 * 0.65f).toInt()
-                                        drawContext.canvas.nativeCanvas.drawText(
-                                            sylText,
-                                            curX,
-                                            lineTopY + offsetY,
-                                            glowPaint
-                                        )
-                                    }
-
-                                    textPaint.alpha = if (isSung) 255 else (255 * 0.35f).toInt()
-                                    drawContext.canvas.nativeCanvas.drawText(
-                                        sylText,
-                                        curX,
-                                        lineTopY + offsetY,
-                                        textPaint
+                            if (activeWidth > 0f) {
+                                val sweepPaint = NativePaint(basePaint).apply {
+                                    alpha = 255
+                                    shader = LinearGradient(
+                                        startX + activeWidth - gradientWidth,
+                                        lineTopY,
+                                        startX + activeWidth + gradientWidth,
+                                        lineTopY,
+                                        intArrayOf(
+                                            android.graphics.Color.WHITE,
+                                            android.graphics.Color.WHITE,
+                                            android.graphics.Color.TRANSPARENT
+                                        ),
+                                        floatArrayOf(0f, 0.5f, 1f),
+                                        Shader.TileMode.CLAMP
                                     )
-
-                                    curX += textPaint.measureText(sylText)
                                 }
-                            } else {
+
+                                // 绘制高亮扫字
+                                drawContext.canvas.nativeCanvas.drawText(contentText, startX, lineTopY, sweepPaint)
+
+                                // 🌟 3. 在当前正在唱到的字符位置，叠加 Glow 发光 + 物理微抬升
+                                var curX = startX
                                 val charCount = contentText.length
                                 for (i in 0 until charCount) {
                                     val ch = contentText[i].toString()
+                                    val charWidth = basePaint.measureText(ch)
                                     val charProgressStart = i.toFloat() / charCount.toFloat()
-                                    val isCharSung = progress >= charProgressStart
 
-                                    val charTau = if (isCharSung) (progress - charProgressStart) * (duration / 1000.0) else 0.0
-                                    val liftK = if (isCharSung) computeLiftSpringK(charTau) else 0f
-                                    val offsetY = -LIFT_PEAK_PX * liftK
+                                    if (progress >= charProgressStart) {
+                                        val charTau = (progress - charProgressStart) * (duration / 1000.0)
+                                        val liftK = computeLiftSpringK(charTau)
+                                        val offsetY = -LIFT_PEAK_PX * liftK
 
-                                    if (isCharSung) {
-                                        glowPaint.alpha = (255 * 0.65f).toInt()
+                                        // Glow 发光 Pass
+                                        glowPaint.alpha = (255 * 0.45f * (1f - liftK * 0.3f)).toInt()
                                         drawContext.canvas.nativeCanvas.drawText(
                                             ch,
                                             curX,
@@ -265,19 +268,11 @@ fun LyricScreen(
                                             glowPaint
                                         )
                                     }
-
-                                    textPaint.alpha = if (isCharSung) 255 else (255 * 0.35f).toInt()
-                                    drawContext.canvas.nativeCanvas.drawText(
-                                        ch,
-                                        curX,
-                                        lineTopY + offsetY,
-                                        textPaint
-                                    )
-
-                                    curX += textPaint.measureText(ch)
+                                    curX += charWidth
                                 }
                             }
                         } else {
+                            // 非焦点行
                             drawContext.canvas.nativeCanvas.drawText(contentText, startX, lineTopY, dimPaint)
                         }
                     }
