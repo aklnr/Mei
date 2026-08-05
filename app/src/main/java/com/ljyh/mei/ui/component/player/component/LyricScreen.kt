@@ -62,7 +62,7 @@ fun LyricScreen(
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
-    var animatedPosition by remember { mutableLongStateOf(0) }
+    var animatedPosition by remember { mutableLongStateOf(0L) }
 
     val pingFangTypeface = remember(context) {
         try {
@@ -158,9 +158,9 @@ fun LyricScreen(
         } else {
             val currentIndex = remember(animatedPosition, lines) {
                 val idx = lines.indexOfLast { line ->
-                    val st = when (line) {
-                        is KaraokeLine -> line.start
-                        is SyncedLine -> line.start
+                    val st: Long = when (line) {
+                        is KaraokeLine -> line.start.toLong()
+                        is SyncedLine -> line.start.toLong()
                         else -> 0L
                     }
                     st <= animatedPosition
@@ -193,22 +193,24 @@ fun LyricScreen(
                         }
 
                         if (isSelected) {
-                            val lineStart = when (line) {
-                                is KaraokeLine -> line.start
-                                is SyncedLine -> line.start
+                            // 🌟 强转为 Long，彻底解决类型推导问题
+                            val lineStart: Long = when (line) {
+                                is KaraokeLine -> line.start.toLong()
+                                is SyncedLine -> line.start.toLong()
                                 else -> 0L
                             }
 
-                            val nextLineStart = if (index < lines.size - 1) {
+                            val nextLineStart: Long = if (index < lines.size - 1) {
                                 when (val next = lines[index + 1]) {
-                                    is KaraokeLine -> next.start
-                                    is SyncedLine -> next.start
+                                    is KaraokeLine -> next.start.toLong()
+                                    is SyncedLine -> next.start.toLong()
                                     else -> lineStart + 4000L
                                 }
-                            } else lineStart + 4000L
+                            } else {
+                                lineStart + 4000L
+                            }
 
-                            // 🌟 修复部分：使用 coerceAtLeast(1000L) 规避类型推论歧义
-                            val duration = (nextLineStart - lineStart).coerceAtLeast(1000L)
+                            val duration: Long = (nextLineStart - lineStart).coerceAtLeast(1000L)
                             val progress = ((animatedPosition - lineStart).toFloat() / duration.toFloat()).coerceIn(0f, 1f)
 
                             var curX = startX
@@ -216,7 +218,7 @@ fun LyricScreen(
                             if (line is KaraokeLine && line.syllables.isNotEmpty()) {
                                 line.syllables.forEach { syllable ->
                                     val sylText = syllable.content
-                                    val sylStart = syllable.start
+                                    val sylStart = syllable.start.toLong()
                                     val isSung = animatedPosition >= sylStart
 
                                     val tau = if (isSung) (animatedPosition - sylStart) / 1000.0 else 0.0
