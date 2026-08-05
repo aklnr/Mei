@@ -43,7 +43,6 @@ import com.mocharealm.accompanist.lyrics.core.model.karaoke.KaraokeLine
 import com.mocharealm.accompanist.lyrics.core.model.synced.SyncedLine
 import kotlinx.coroutines.delay
 import kotlin.math.exp
-import kotlin.math.max
 import kotlin.math.sqrt
 
 private const val LIFT_PEAK_PX = 6.0f
@@ -162,7 +161,7 @@ fun LyricScreen(
                     val st = when (line) {
                         is KaraokeLine -> line.start
                         is SyncedLine -> line.start
-                        else -> 0
+                        else -> 0L
                     }
                     st <= animatedPosition
                 }
@@ -197,19 +196,20 @@ fun LyricScreen(
                             val lineStart = when (line) {
                                 is KaraokeLine -> line.start
                                 is SyncedLine -> line.start
-                                else -> 0
+                                else -> 0L
                             }
 
                             val nextLineStart = if (index < lines.size - 1) {
                                 when (val next = lines[index + 1]) {
                                     is KaraokeLine -> next.start
                                     is SyncedLine -> next.start
-                                    else -> lineStart + 4000
+                                    else -> lineStart + 4000L
                                 }
-                            } else lineStart + 4000
+                            } else lineStart + 4000L
 
-                            val duration = max(1000L, nextLineStart - lineStart)
-                            val progress = ((animatedPosition - lineStart).toFloat() / duration).coerceIn(0f, 1f)
+                            // 🌟 修复部分：使用 coerceAtLeast(1000L) 规避类型推论歧义
+                            val duration = (nextLineStart - lineStart).coerceAtLeast(1000L)
+                            val progress = ((animatedPosition - lineStart).toFloat() / duration.toFloat()).coerceIn(0f, 1f)
 
                             var curX = startX
 
@@ -247,7 +247,7 @@ fun LyricScreen(
                                 val charCount = contentText.length
                                 for (i in 0 until charCount) {
                                     val ch = contentText[i].toString()
-                                    val charProgressStart = i.toFloat() / charCount
+                                    val charProgressStart = i.toFloat() / charCount.toFloat()
                                     val isCharSung = progress >= charProgressStart
 
                                     val charTau = if (isCharSung) (progress - charProgressStart) * (duration / 1000.0) else 0.0
